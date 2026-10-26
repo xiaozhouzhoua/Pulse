@@ -68,3 +68,7 @@ xcuserdata/
 
 # Cached Rust build products for the Longbridge plugin (CI restores these).
 .cache/
+
+# Local build/install copies of the app bundle.
+/Quote.app
+/Tick.app

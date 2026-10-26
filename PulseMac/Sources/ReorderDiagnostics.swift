@@ -46,7 +46,7 @@ final class ReorderDiagnostics {
     private static let maximumEventCount = 200
     private let startedAt = ProcessInfo.processInfo.systemUptime
     private let logger = Logger(
-        subsystem: Bundle.main.bundleIdentifier ?? "app.pulse.mac.dev",
+        subsystem: Bundle.main.bundleIdentifier ?? "local.quote.mac.dev",
         category: "WatchlistReorder"
     )
     private var events: [Event] = []
@@ -195,7 +195,7 @@ final class ReorderDiagnostics {
             feature: "watchlist.reorder",
             privacyNotice: "Contains app/device metadata and bounded interaction events only. No symbols, watchlists, positions, searches, credentials, or raw system logs are included.",
             app: .init(
-                name: bundle.object(forInfoDictionaryKey: "CFBundleDisplayName") as? String ?? "Pulse Dev",
+                name: bundle.object(forInfoDictionaryKey: "CFBundleDisplayName") as? String ?? "Tick Dev",
                 version: bundle.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "unknown",
                 build: bundle.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? "unknown",
                 bundleIdentifier: bundle.bundleIdentifier ?? "unknown"

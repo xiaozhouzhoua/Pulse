@@ -5,9 +5,9 @@ set -euo pipefail
 MODE="${1:-run}"
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 DERIVED_DATA="$ROOT_DIR/build/DerivedData"
-BUNDLE_ID="app.pulse.mac.dev"
+BUNDLE_ID="local.quote.mac.dev"
 CONFIGURATION="Debug"
-APP_NAME="Pulse Dev"
+APP_NAME="Tick Dev"
 RELEASE_BUILD=0
 
 # Use a complete Xcode for project builds without changing the machine-wide
@@ -30,8 +30,8 @@ fi
 case "$MODE" in
   --release|release|--release-verify|--release-sdk|release-sdk|--release-sdk-verify|--release-settings-persistence-selftest|--release-sdk-live-selftest|--release-sdk-watchlist-selftest|--release-sdk-stability-selftest)
     CONFIGURATION="Release"
-    APP_NAME="Pulse"
-    BUNDLE_ID="app.pulse.mac"
+    APP_NAME="Tick"
+    BUNDLE_ID="local.quote.mac"
     RELEASE_BUILD=1
     ;;
 esac
@@ -42,8 +42,8 @@ APP_BINARY="$APP_BUNDLE/Contents/MacOS/$APP_NAME"
 if [[ "$RELEASE_BUILD" == "1" ]]; then
   # Avoid running Debug and Release simultaneously with the same Longbridge
   # credentials, which could consume multiple quote connections.
-  pkill -x "Pulse" >/dev/null 2>&1 || true
-  pkill -x "Pulse Dev" >/dev/null 2>&1 || true
+  pkill -x "Tick" >/dev/null 2>&1 || true
+  pkill -x "Tick Dev" >/dev/null 2>&1 || true
 else
   pkill -x "$APP_NAME" >/dev/null 2>&1 || true
 fi
@@ -94,7 +94,7 @@ if [[ "$RELEASE_BUILD" == "1" ]]; then
 fi
 
 xcodebuild \
-  -project Pulse.xcodeproj \
+  -project Tick.xcodeproj \
   -scheme PulseMac \
   -configuration "$CONFIGURATION" \
   -derivedDataPath "$DERIVED_DATA" \

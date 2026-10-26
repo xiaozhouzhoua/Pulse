@@ -22,9 +22,26 @@ public struct IntradayTradingSession: Sendable, Hashable {
     public let preOpen: Date?
     public let postClose: Date?
 
+    /// Gregorian calendars pinned to each market's exchange timezone. Session
+    /// math runs per candle (filtering and shading walk whole series), and
+    /// constructing a `Calendar` is the expensive part of that call.
+    private static let calendarsByTimezone: [String: Calendar] = {
+        var result: [String: Calendar] = [:]
+        for market in Market.allCases where result[market.timeZone.identifier] == nil {
+            var calendar = Calendar(identifier: .gregorian)
+            calendar.timeZone = market.timeZone
+            result[market.timeZone.identifier] = calendar
+        }
+        return result
+    }()
+
+    private static func calendar(for timeZone: TimeZone) -> Calendar {
+        calendarsByTimezone[timeZone.identifier]
+            ?? Calendar.current // unreachable: every Market timezone is seeded above
+    }
+
     public init(market: Market, referenceDate: Date, includesExtendedHours: Bool = false) {
-        var calendar = Calendar(identifier: .gregorian)
-        calendar.timeZone = market.timeZone
+        let calendar = Self.calendar(for: market.timeZone)
         let day = calendar.startOfDay(for: referenceDate)
         func at(_ hour: Int, _ minute: Int) -> Date {
             calendar.date(bySettingHour: hour, minute: minute, second: 0, of: day) ?? day
@@ -143,8 +160,7 @@ public struct IntradayTradingSession: Sendable, Hashable {
         includesExtendedHours: Bool
     ) -> [Candle] {
         guard market == .us else { return candles }
-        var calendar = Calendar(identifier: .gregorian)
-        calendar.timeZone = market.timeZone
+        let calendar = calendar(for: market.timeZone)
         let lowerMinute = includesExtendedHours ? 4 * 60 : 9 * 60 + 30
         let upperMinute = includesExtendedHours ? 20 * 60 : 16 * 60
         return candles.filter { candle in
@@ -156,8 +172,7 @@ public struct IntradayTradingSession: Sendable, Hashable {
 
     /// Classifies a US intraday bar for subtle pre/post chart shading.
     public static func usSessionKind(for date: Date) -> IntradaySessionKind {
-        var calendar = Calendar(identifier: .gregorian)
-        calendar.timeZone = Market.us.timeZone
+        let calendar = calendar(for: Market.us.timeZone)
         let components = calendar.dateComponents([.hour, .minute], from: date)
         let minute = (components.hour ?? 0) * 60 + (components.minute ?? 0)
         if minute < 9 * 60 + 30 { return .pre }

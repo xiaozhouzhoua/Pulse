@@ -67,7 +67,11 @@ struct SettingsView: View {
         @Bindable var settings = appState.settings
 
         VStack(spacing: 0) {
-            header
+            // The Settings window names itself in its title bar, and as the root of
+            // that window there is nowhere to go back to.
+            if host != .desktop {
+                header
+            }
 
             Form {
                 Section {
@@ -124,14 +128,20 @@ struct SettingsView: View {
 
                 Section {
                     settingsDestinationRow(titleKey: "settings.data.row", route: .dataSettings)
-                    Toggle(
-                        PulseLocalization.localizedString("settings.general.anonymousAnalytics"),
-                        isOn: $settings.shareAnonymousUsageData
-                    )
+                    // A switch for analytics that can never be sent would promise a
+                    // choice that does not exist; builds without an app id omit it.
+                    if PulseTelemetry.isConfigured {
+                        Toggle(
+                            PulseLocalization.localizedString("settings.general.anonymousAnalytics"),
+                            isOn: $settings.shareAnonymousUsageData
+                        )
+                    }
                 } header: {
                     Text(PulseLocalization.localizedString("settings.section.data"))
                 } footer: {
-                    Text(PulseLocalization.localizedString("settings.general.anonymousAnalyticsHelp"))
+                    if PulseTelemetry.isConfigured {
+                        Text(PulseLocalization.localizedString("settings.general.anonymousAnalyticsHelp"))
+                    }
                 }
 
                 Section {
@@ -139,35 +149,46 @@ struct SettingsView: View {
                         PulseLocalization.localizedString("settings.updates.currentVersion"),
                         value: "\(softwareUpdate.currentVersion) (\(softwareUpdate.currentBuild))"
                     )
-                    Button(PulseLocalization.localizedString("settings.updates.check")) {
-                        softwareUpdate.checkForUpdates()
+                    // Only a build with an update feed can check; App Store builds
+                    // are updated by the store and must not offer their own path.
+                    if softwareUpdate.isConfigured {
+                        Button(PulseLocalization.localizedString("settings.updates.check")) {
+                            softwareUpdate.checkForUpdates()
+                        }
                     }
-                    .disabled(!softwareUpdate.isConfigured)
+                    Button(PulseLocalization.localizedString("settings.about.acknowledgements")) {
+                        NSApp.activate(ignoringOtherApps: true)
+                        NSApp.orderFrontStandardAboutPanel(nil)
+                    }
                 } header: {
-                    Text(PulseLocalization.localizedString("settings.section.updates"))
+                    Text(PulseLocalization.localizedString(
+                        softwareUpdate.isConfigured ? "settings.section.updates" : "settings.section.about"
+                    ))
                 }
 
                 Section {
-                    // The address is a value, not a link: it has to be readable and
-                    // copyable even on a Mac with no mail client configured.
-                    LabeledContent(PulseLocalization.localizedString("feedback.emailLabel")) {
-                        HStack(spacing: 4) {
-                            Text(SupportLinks.supportEmail)
-                                .textSelection(.enabled)
-                                .foregroundStyle(.secondary)
-                            IconButton(
-                                systemName: "doc.on.doc",
-                                help: PulseLocalization.localizedString("feedback.copyEmail")
-                            ) {
-                                showDiagnosticsFeedback(content: .text, isSuccess: SupportLinks.copyEmailAddress())
+                    if let supportEmail = SupportLinks.supportEmail {
+                        // The address is a value, not a link: it has to be readable and
+                        // copyable even on a Mac with no mail client configured.
+                        LabeledContent(PulseLocalization.localizedString("feedback.emailLabel")) {
+                            HStack(spacing: 4) {
+                                Text(supportEmail)
+                                    .textSelection(.enabled)
+                                    .foregroundStyle(.secondary)
+                                IconButton(
+                                    systemName: "doc.on.doc",
+                                    help: PulseLocalization.localizedString("feedback.copyEmail")
+                                ) {
+                                    showDiagnosticsFeedback(content: .text, isSuccess: SupportLinks.copyEmailAddress())
+                                }
                             }
                         }
-                    }
-                    Button(PulseLocalization.localizedString("feedback.sendEmail")) {
-                        switch SupportDiagnostics.emailReport(appState: appState, host: host) {
-                        case .drafted: break
-                        case .copiedInstead: showDiagnosticsFeedback(content: .emailFallback, isSuccess: true)
-                        case .failed: showDiagnosticsFeedback(content: .emailFallback, isSuccess: false)
+                        Button(PulseLocalization.localizedString("feedback.sendEmail")) {
+                            switch SupportDiagnostics.emailReport(appState: appState, host: host) {
+                            case .drafted: break
+                            case .copiedInstead: showDiagnosticsFeedback(content: .emailFallback, isSuccess: true)
+                            case .failed: showDiagnosticsFeedback(content: .emailFallback, isSuccess: false)
+                            }
                         }
                     }
                     Button(PulseLocalization.localizedString("feedback.copyDiagnostics")) {
@@ -179,7 +200,9 @@ struct SettingsView: View {
                 } header: {
                     Text(PulseLocalization.localizedString("settings.section.support"))
                 } footer: {
-                    Text(PulseLocalization.localizedString("settings.support.help"))
+                    Text(PulseLocalization.localizedString(
+                        SupportLinks.supportEmail == nil ? "settings.support.helpNoEmail" : "settings.support.help"
+                    ))
                 }
 
                 #if DEBUG
@@ -200,6 +223,16 @@ struct SettingsView: View {
             .controlSize(.small)
             .scrollContentBackground(.hidden)
             .softScrollEdgeEffect(for: .all)
+        }
+        .overlay(alignment: .top) {
+            // Without the header row the Settings window still needs somewhere
+            // to confirm a copy.
+            if host == .desktop, let diagnosticsFeedback {
+                ShareFeedbackHUD(feedback: diagnosticsFeedback)
+                    .padding(.top, 8)
+                    .transition(.opacity.combined(with: .scale(scale: 0.96, anchor: .top)))
+                    .allowsHitTesting(false)
+            }
         }
         .onAppear { PulseTelemetry.signal(.settingsOpened) }
     }

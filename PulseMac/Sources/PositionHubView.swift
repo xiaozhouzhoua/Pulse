@@ -8,6 +8,7 @@ import PulseUI
 struct PositionHubView: View {
     @Environment(AppState.self) private var appState
     @Environment(\.pulseHost) private var host
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     let symbol: SymbolID
     let returnRoute: PositionReturnRoute
     @Binding var route: PopoverRoute
@@ -16,28 +17,45 @@ struct PositionHubView: View {
     private var quote: Quote? { appState.market.quote(for: symbol) }
     private var currencyCode: String? { quote?.currencyCode ?? symbol.currencyCode }
 
+    /// Recording the first trade, selling out, and clearing the last entry swap
+    /// the whole body; these follow the app-wide contextual-row pattern so the
+    /// swap reads as a transition instead of a jump.
+    private var bodyTransition: AnyTransition {
+        reduceMotion
+            ? .opacity
+            : .opacity.combined(with: .move(edge: .top))
+    }
+
+    private var bodyAnimation: Animation {
+        reduceMotion ? .easeOut(duration: 0.15) : .snappy(duration: 0.22)
+    }
+
     var body: some View {
         VStack(spacing: 0) {
             PositionPageHeader(
                 symbol: symbol,
                 title: nil,
                 onBack: { route = returnRoute.popoverRoute },
-                // In the menu-bar panel the action remains in the page row. The
-                // pinned window promotes it to the title bar below.
-                onEdit: host == .menuBar && item?.hasPosition == true
+                // The panel and the desktop details column keep the action in the
+                // page row. The pinned window promotes it to the title bar below.
+                onEdit: host != .pinnedWindow && item?.hasPosition == true
                     ? { route = .calibrate(symbol, returnRoute) }
                     : nil
             )
             if let item {
                 if item.hasPosition {
                     openPositionBody(item)
+                        .transition(bodyTransition)
                 } else {
                     emptyBody(item)
+                        .transition(bodyTransition)
                 }
             }
             Spacer(minLength: 0)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+        .animation(bodyAnimation, value: item?.hasPosition == true)
+        .animation(bodyAnimation, value: item?.transactions.isEmpty ?? true)
         .toolbar {
             if host == .pinnedWindow, item?.hasPosition == true {
                 ToolbarItem(placement: .primaryAction) {
@@ -60,25 +78,29 @@ struct PositionHubView: View {
     @ViewBuilder
     private func openPositionBody(_ item: WatchItem) -> some View {
         VStack(alignment: .leading, spacing: 0) {
-            if let quote, let metrics = PositionMetrics(item: item, quote: quote) {
-                HStack(spacing: 8) {
-                    pnlCell(PulseLocalization.localizedString("metric.todayPnL"),
-                            amount: metrics.todayPnL, percent: metrics.todayReturnPercent)
-                    pnlCell(PulseLocalization.localizedString("metric.totalPnL"),
-                            amount: metrics.totalPnL, percent: metrics.totalReturnPercent)
+            Group {
+                if let quote, let metrics = PositionMetrics(item: item, quote: quote) {
+                    HStack(spacing: 8) {
+                        pnlCell(PulseLocalization.localizedString("metric.todayPnL"),
+                                amount: metrics.todayPnL, percent: metrics.todayReturnPercent)
+                        pnlCell(PulseLocalization.localizedString("metric.totalPnL"),
+                                amount: metrics.totalPnL, percent: metrics.totalReturnPercent)
+                    }
+                    HStack(spacing: 8) {
+                        stat(PulseLocalization.localizedString("position.quantity"), PriceFormatter.quantity(metrics.quantity))
+                        stat(PulseLocalization.localizedString("position.cost"), PriceFormatter.price(metrics.averageCost))
+                        stat(PulseLocalization.localizedString("position.marketValue"), PriceFormatter.money(metrics.marketValue, currencyCode: currencyCode))
+                    }
+                    .padding(.top, 10)
+                } else {
+                    Text(PulseLocalization.localizedString("position.waitingQuote"))
+                        .font(.system(size: 10.5))
+                        .foregroundStyle(.tertiary)
+                        .padding(.vertical, 6)
                 }
-                HStack(spacing: 8) {
-                    stat(PulseLocalization.localizedString("position.quantity"), PriceFormatter.quantity(metrics.quantity))
-                    stat(PulseLocalization.localizedString("position.cost"), PriceFormatter.price(metrics.averageCost))
-                    stat(PulseLocalization.localizedString("position.marketValue"), PriceFormatter.money(metrics.marketValue, currencyCode: currencyCode))
-                }
-                .padding(.top, 10)
-            } else {
-                Text(PulseLocalization.localizedString("position.waitingQuote"))
-                    .font(.system(size: 10.5))
-                    .foregroundStyle(.tertiary)
-                    .padding(.vertical, 6)
             }
+            .animation(bodyAnimation, value: quote != nil)
+            .transition(.opacity)
             HStack(spacing: 8) {
                 stat(
                     PulseLocalization.localizedString("position.realizedPnL"),

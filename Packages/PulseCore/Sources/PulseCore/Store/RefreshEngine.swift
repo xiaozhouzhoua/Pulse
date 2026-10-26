@@ -1,6 +1,20 @@
 import Foundation
 import Observation
 
+/// The answer to an on-demand candle load. `failed` separates "the source has
+/// nothing" from "the ask itself failed" — a transport outage must not read
+/// as an empty history, and `candles` then carries whatever stale cache could
+/// still be shown (possibly none).
+public struct CandleLoadOutcome: Sendable {
+    public var candles: [Candle]
+    public var failed: Bool
+
+    public init(candles: [Candle], failed: Bool = false) {
+        self.candles = candles
+        self.failed = failed
+    }
+}
+
 /// Refresh scheduling: a trading-session-aware polling loop.
 /// Providers handle HOW to fetch data; this handles WHEN. Each data source polls at its own
 /// cadence (user override → descriptor suggestion → 15s default): the scheduler ticks on a
@@ -102,31 +116,55 @@ public final class RefreshEngine {
         let overnightByProvider = Dictionary(uniqueKeysWithValues: provider.registeredDescriptors.map {
             ($0.id, $0.overnightMarkets)
         })
-        for (providerID, group) in routing {
-            let last = lastPollAt[providerID] ?? .distantPast
-            guard Date.now.timeIntervalSince(last) >= pollInterval(for: providerID) else { continue }
+        // Provider groups poll concurrently: one slow source must not delay the
+        // quotes of every market behind it. Per-provider rate budgets still
+        // serialize inside the composite, and all store writes stay on the
+        // main actor.
+        await withTaskGroup(of: Void.self) { group in
+            for (providerID, providerSymbols) in routing {
+                let last = lastPollAt[providerID] ?? .distantPast
+                guard Date.now.timeIntervalSince(last) >= pollInterval(for: providerID) else { continue }
 
-            let quoteSymbols = symbolsWorthRefreshing(group, overnightMarkets: overnightByProvider[providerID] ?? [])
-            guard !quoteSymbols.isEmpty else { continue }
-            lastPollAt[providerID] = .now
-            do {
-                let quotes = try await provider.quotes(for: quoteSymbols)
-                guard !writesHeld else {
-                    // A hold began while this fetch was in flight. Drop the round and
-                    // clear the stamp so the provider re-polls right after release.
-                    lastPollAt[providerID] = nil
-                    return
+                let quoteSymbols = symbolsWorthRefreshing(providerSymbols, overnightMarkets: overnightByProvider[providerID] ?? [])
+                guard !quoteSymbols.isEmpty else { continue }
+                lastPollAt[providerID] = .now
+                group.addTask {
+                    await self.pollQuotes(providerID: providerID, symbols: quoteSymbols)
                 }
-                store.apply(quotes: quotes)
-                applyQuoteNameUpgrades(quotes)
-            } catch {
-                guard !writesHeld else { return }
-                store.reportError(String(describing: error))
             }
         }
 
         await refreshDisplayNamesIfDue(symbols: symbols)
         await refreshSparklinesIfDue(symbols: symbols)
+    }
+
+    private func pollQuotes(providerID: String, symbols: [SymbolID]) async {
+        do {
+            let quotes = try await provider.quotes(for: symbols)
+            guard !writesHeld else {
+                // A hold began while this fetch was in flight. Drop the round and
+                // clear the stamp so the provider re-polls right after release.
+                lastPollAt[providerID] = nil
+                return
+            }
+            store.apply(quotes: quotes)
+            applyQuoteNameUpgrades(quotes)
+        } catch is CancellationError {
+            // A poke cancelled this round; the restarted loop refreshes immediately.
+            return
+        } catch {
+            guard !writesHeld else { return }
+            // Same story for sources whose SDK surfaces cancellation as its own
+            // error type instead of CancellationError.
+            if Task.isCancelled { return }
+            store.reportError(String(describing: error))
+            // A failed round must not also spend the whole cadence: drop the
+            // stamp so the next base tick retries. Routing re-evaluates then,
+            // so a source that failed into its circuit-breaker cooldown is
+            // skipped and a healthy fallback is asked instead; a source
+            // without a fallback fails fast without touching the network.
+            lastPollAt[providerID] = nil
+        }
     }
 
     private func applyQuoteNameUpgrades(_ quotes: [Quote]) {
@@ -183,6 +221,7 @@ public final class RefreshEngine {
         var fetched = 0
         for symbol in symbols {
             guard !writesHeld else { return }
+            if Task.isCancelled { return }
             let last = lastSparklineAt[symbol] ?? .distantPast
             // A closed market's sparkline doesn't change; skip fetching if we already have data
             let active = TradingCalendar.isActive(symbol.market)
@@ -192,7 +231,8 @@ public final class RefreshEngine {
             // Record the time regardless of success: symbols a source lacks (e.g. A-share indices missing from Yahoo) shouldn't be retried over and over
             lastSparklineAt[symbol] = .now
             let count = IntradayTrendSnapshot.recommendedCandleCount(for: symbol.market)
-            if let candles = try? await provider.candles(for: symbol, period: .minute1, count: count) {
+            do {
+                let candles = try await provider.candles(for: symbol, period: .minute1, count: count)
                 guard !writesHeld else {
                     lastSparklineAt[symbol] = nil // re-fetch promptly after release
                     return
@@ -204,34 +244,47 @@ public final class RefreshEngine {
                     candles: candles.sorted { $0.time < $1.time },
                     for: CandleCacheKey(symbol: symbol, period: .minute1)
                 )
+            } catch {
+                // A cancelled round (a poke restarted the loop) must not spend the
+                // five-minute interval on a fetch that never landed: roll the stamp
+                // back so the new loop refetches right away.
+                if Task.isCancelled || error is CancellationError {
+                    lastSparklineAt[symbol] = nil
+                    return
+                }
+                // Any other failure keeps the stamp per the policy above.
             }
             // Fetch one at a time with a gap in between to avoid a request burst against a single source (which would trigger rate limiting)
             fetched += 1
             if fetched >= 6 { break }
             try? await Task.sleep(for: .milliseconds(350))
+            if Task.isCancelled { return }
         }
     }
 
     // MARK: - On-demand detail chart loading (called when the popover opens a detail view)
 
-    public func loadCandles(for symbol: SymbolID, period: CandlePeriod, count: Int = 120) async -> [Candle] {
+    public func loadCandles(for symbol: SymbolID, period: CandlePeriod, count: Int = 120) async -> CandleLoadOutcome {
         let key = CandleCacheKey(symbol: symbol, period: period)
         let maxAge: TimeInterval = period.isIntraday ? 60 : 600
         if let cached = store.cachedCandles(for: key, maxAge: maxAge) {
-            return synchronizeIntradayTrend(cached, for: symbol, period: period)
+            return CandleLoadOutcome(candles: synchronizeIntradayTrend(cached, for: symbol, period: period))
         }
         do {
             let candles = try await provider.candles(for: symbol, period: period, count: count)
             let synchronized = synchronizeIntradayTrend(candles, for: symbol, period: period)
             store.cache(candles: synchronized, for: key)
-            return synchronized
+            return CandleLoadOutcome(candles: synchronized)
         } catch is CancellationError {
             let cached = store.cachedCandles(for: key, maxAge: .infinity) ?? []
-            return synchronizeIntradayTrend(cached, for: symbol, period: period)
+            return CandleLoadOutcome(candles: synchronizeIntradayTrend(cached, for: symbol, period: period))
         } catch {
             store.reportError(String(describing: error))
             let cached = store.cachedCandles(for: key, maxAge: .infinity) ?? []
-            return synchronizeIntradayTrend(cached, for: symbol, period: period)
+            return CandleLoadOutcome(
+                candles: synchronizeIntradayTrend(cached, for: symbol, period: period),
+                failed: true
+            )
         }
     }
 

@@ -101,7 +101,7 @@ enum SelfTest {
             // Exercises the shipped binary's export/import path end to end. It runs
             // against an isolated defaults suite, so it never reads or writes the
             // watchlist the user actually keeps.
-            let suiteName = "app.pulse.mac.watchlist-archive-selftest"
+            let suiteName = "local.quote.mac.watchlist-archive-selftest"
             guard let defaults = UserDefaults(suiteName: suiteName) else {
                 print("PULSE_WATCHLIST_ARCHIVE_SELFTEST failed error=unable-to-create-defaults")
                 fflush(stdout)
@@ -160,7 +160,7 @@ enum SelfTest {
         }
 
         if CommandLine.arguments.contains("--settings-persistence-selftest") {
-            let suiteName = "app.pulse.mac.settings-persistence-selftest"
+            let suiteName = "local.quote.mac.settings-persistence-selftest"
             guard let defaults = UserDefaults(suiteName: suiteName) else {
                 print("PULSE_SETTINGS_PERSISTENCE_SELFTEST failed error=unable-to-create-defaults")
                 fflush(stdout)
@@ -168,25 +168,32 @@ enum SelfTest {
             }
             defaults.removePersistentDomain(forName: suiteName)
 
+            let selected = SymbolID(market: .hk, code: "00700")
             let configured = AppSettings(defaults: defaults)
             configured.redUp = false
             configured.watchRowMetricMode = .changePercent
+            configured.desktopSelectedSymbol = selected
+            configured.desktopDetailsVisible = false
 
             let reloaded = AppSettings(defaults: defaults)
             let passed = !reloaded.redUp && reloaded.watchRowMetricMode == .changePercent
+                && reloaded.desktopSelectedSymbol == selected
+                && !reloaded.desktopDetailsVisible
             defaults.removePersistentDomain(forName: suiteName)
 
             guard passed else {
                 print(
                     "PULSE_SETTINGS_PERSISTENCE_SELFTEST failed " +
-                    "redUp=\(reloaded.redUp) metric=\(reloaded.watchRowMetricMode.rawValue)"
+                    "redUp=\(reloaded.redUp) metric=\(reloaded.watchRowMetricMode.rawValue) " +
+                    "desktopSymbol=\(reloaded.desktopSelectedSymbol?.description ?? "nil") " +
+                    "desktopDetails=\(reloaded.desktopDetailsVisible)"
                 )
                 fflush(stdout)
                 exit(1)
             }
             print(
                 "PULSE_SETTINGS_PERSISTENCE_SELFTEST ok " +
-                "redUp=false metric=changePercent"
+                "redUp=false metric=changePercent desktopSymbol=700.HK desktopDetails=false"
             )
             fflush(stdout)
             exit(0)
@@ -653,7 +660,7 @@ enum SelfTest {
     @MainActor
     private static func runDiagnosticsTest() -> Bool {
         let marker = "diagnostics-selftest-\(UUID().uuidString)"
-        Logger(subsystem: Bundle.main.bundleIdentifier ?? "app.pulse.mac", category: "SelfTest")
+        Logger(subsystem: Bundle.main.bundleIdentifier ?? "local.quote.mac", category: "SelfTest")
             .info("Marker \(marker, privacy: .public)")
 
         let snapshot = SupportDiagnostics.Snapshot(
@@ -1024,7 +1031,7 @@ enum SelfTest {
 
             // Exercise the same WatchlistStore + MarketStore constructor used by AppState,
             // with isolated persistence so this test never touches the user's watchlist.
-            let defaultsSuite = "app.pulse.share-selftest.\(UUID().uuidString)"
+            let defaultsSuite = "local.quote.share-selftest.\(UUID().uuidString)"
             guard let isolatedDefaults = UserDefaults(suiteName: defaultsSuite) else {
                 throw MarketTextSnapshotError.encodingFailed
             }
@@ -1085,7 +1092,7 @@ enum SelfTest {
                 exportedAt: exportedAt
             ).renderedText()
             let watchlistPayload = try decodedTextSnapshot(watchlistText)
-            guard watchlistText.hasPrefix("This market snapshot was exported by Pulse."),
+            guard watchlistText.hasPrefix("This market snapshot was exported by Tick."),
                   !watchlistText.contains("987654.321"),
                   !watchlistText.contains("12345.678"),
                   !watchlistText.contains("—"),

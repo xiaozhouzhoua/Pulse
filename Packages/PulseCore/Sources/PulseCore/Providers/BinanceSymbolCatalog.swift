@@ -41,7 +41,7 @@ actor BinanceSymbolCatalog {
 
     static func defaultCacheURL(fileManager: FileManager = .default) -> URL? {
         fileManager.urls(for: .cachesDirectory, in: .userDomainMask).first?
-            .appendingPathComponent("Pulse", isDirectory: true)
+            .appendingPathComponent("Quote", isDirectory: true)
             .appendingPathComponent("binance-symbol-catalog-v1.json")
     }
 

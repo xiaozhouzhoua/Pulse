@@ -22,7 +22,24 @@ public final class MarketStore {
     public private(set) var lastError: String?
 
     @ObservationIgnored private var candleCache: [CandleCacheKey: (candles: [Candle], fetchedAt: Date)] = [:]
-    @ObservationIgnored private var profileCache: [SymbolID: (profile: SecurityProfile?, fetchedAt: Date)] = [:]
+    /// Language the cached profile was fetched in. Summaries arrive in the
+    /// source's language, and the composite routes by the app's current one —
+    /// switching languages must not keep serving the old language's answer.
+    private struct ProfileCacheKey: Hashable {
+        var symbol: SymbolID
+        var language: String
+    }
+
+    /// The profile language routing answers to: just the family ("zh", "en"),
+    /// matching how `CompositeProvider` orders its profile sources.
+    private static func profileCacheKey(_ symbol: SymbolID) -> ProfileCacheKey {
+        ProfileCacheKey(
+            symbol: symbol,
+            language: String(PulseLocalization.currentLanguageIdentifier.prefix(2)).lowercased()
+        )
+    }
+
+    @ObservationIgnored private var profileCache: [ProfileCacheKey: (profile: SecurityProfile?, fetchedAt: Date)] = [:]
 
     public init() {}
 
@@ -81,23 +98,25 @@ public final class MarketStore {
         return entry.candles
     }
 
-    public func cache(candles: [Candle], for key: CandleCacheKey) {
-        candleCache[key] = (candles, .now)
+    public func cache(candles: [Candle], for key: CandleCacheKey, fetchedAt: Date = .now) {
+        candleCache[key] = (candles, fetchedAt)
     }
 
     // MARK: - Profile cache
 
     /// Profiles describe a business, not a session, so they are cached for the
-    /// day. "This symbol has none" is cached too — an index would otherwise be
-    /// looked up every time its page opens.
+    /// day — per language, so switching the app's language re-asks rather than
+    /// replaying the other language's answer. "This symbol has none" is cached
+    /// too — an index would otherwise be looked up every time its page opens.
     public func cachedProfile(for symbol: SymbolID, maxAge: TimeInterval = 86_400) -> SecurityProfile?? {
-        guard let entry = profileCache[symbol], Date.now.timeIntervalSince(entry.fetchedAt) < maxAge else {
+        guard let entry = profileCache[Self.profileCacheKey(symbol)],
+              Date.now.timeIntervalSince(entry.fetchedAt) < maxAge else {
             return nil
         }
         return .some(entry.profile)
     }
 
     public func cache(profile: SecurityProfile?, for symbol: SymbolID) {
-        profileCache[symbol] = (profile, .now)
+        profileCache[Self.profileCacheKey(symbol)] = (profile, .now)
     }
 }

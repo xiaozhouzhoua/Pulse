@@ -186,7 +186,7 @@ struct TradeEntryView: View {
             dailyCandles = cached
             return
         }
-        dailyCandles = await appState.engine.loadCandles(for: symbol, period: .day, count: 250)
+        dailyCandles = await appState.engine.loadCandles(for: symbol, period: .day, count: 250).candles
     }
 
     // MARK: - Form rows

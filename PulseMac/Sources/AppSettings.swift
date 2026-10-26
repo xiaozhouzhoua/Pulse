@@ -123,6 +123,12 @@ final class AppSettings {
     /// dragged it to is on us.
     var pinnedWindowTopLeft: CGPoint? { didSet { save() } }
 
+    /// The symbol the desktop window last showed, so a relaunch opens on it.
+    var desktopSelectedSymbol: SymbolID? { didSet { save() } }
+
+    /// Whether the desktop window's details column (stats, position) is showing.
+    var desktopDetailsVisible: Bool = true { didSet { save() } }
+
     /// Provider ids disabled by the user (all enabled by default)
     var disabledProviderIDs: Set<String> = [] { didSet { save() } }
 
@@ -209,6 +215,8 @@ final class AppSettings {
             recentSearchQueries = snapshot.recentSearchQueries ?? []
             pinnedWindowVisible = snapshot.pinnedWindowVisible ?? false
             pinnedWindowTopLeft = snapshot.pinnedWindowTopLeft
+            desktopSelectedSymbol = snapshot.desktopSelectedSymbol
+            desktopDetailsVisible = snapshot.desktopDetailsVisible ?? true
             showPriceInMenuBar = snapshot.showPriceInMenuBar ?? false
             languagePreference = snapshot.languagePreference ?? .system
             shareAnonymousUsageData = snapshot.shareAnonymousUsageData ?? true
@@ -239,6 +247,8 @@ final class AppSettings {
         var recentSearchQueries: [String]?
         var pinnedWindowVisible: Bool?
         var pinnedWindowTopLeft: CGPoint?
+        var desktopSelectedSymbol: SymbolID?
+        var desktopDetailsVisible: Bool?
         var showPriceInMenuBar: Bool?
         var languagePreference: PulseLanguagePreference?
         var providerPollIntervals: [String: TimeInterval]?
@@ -259,6 +269,8 @@ final class AppSettings {
                                 recentSearchQueries: recentSearchQueries,
                                 pinnedWindowVisible: pinnedWindowVisible,
                                 pinnedWindowTopLeft: pinnedWindowTopLeft,
+                                desktopSelectedSymbol: desktopSelectedSymbol,
+                                desktopDetailsVisible: desktopDetailsVisible,
                                 showPriceInMenuBar: showPriceInMenuBar,
                                 languagePreference: languagePreference,
                                 providerPollIntervals: providerPollIntervals,

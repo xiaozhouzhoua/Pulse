@@ -8,14 +8,14 @@ enum MCPTokenStore {
         let status: OSStatus
     }
 
-    private static let baseService = "app.pulse.mcp"
+    private static let baseService = "local.quote.mcp"
     private static let account = "bearer"
 
     /// Debug and release builds must never silently consume each other's secrets.
     private static var service: String {
         switch Bundle.main.bundleIdentifier {
-        case "app.pulse.mac": "\(baseService).release"
-        case "app.pulse.mac.dev": "\(baseService).debug"
+        case "local.quote.mac": "\(baseService).release"
+        case "local.quote.mac.dev": "\(baseService).debug"
         default: baseService
         }
     }

@@ -14,6 +14,10 @@ public struct HTTPClient: Sendable {
         } else {
             let config = URLSessionConfiguration.ephemeral
             config.timeoutIntervalForRequest = 10
+            // The request-level timeout only bounds time-between-bytes; a slow-dripping
+            // body could otherwise hold a connection open for the 7-day resource default
+            // and stall the whole serial poll chain behind it.
+            config.timeoutIntervalForResource = 30
             config.httpAdditionalHeaders = nil
             self.session = URLSession(configuration: config)
         }
@@ -59,6 +63,11 @@ public struct HTTPClient: Sendable {
         let (data, response): (Data, URLResponse)
         do {
             (data, response) = try await session.data(for: request)
+        } catch let error as URLError where error.code == .cancelled {
+            // The scheduler cancels in-flight rounds on every poke; surfacing that as
+            // a network error would trip the source's circuit breaker for a cancel
+            // the app itself caused. CancellationError is exempt by design.
+            throw CancellationError()
         } catch {
             throw ProviderError.network(underlying: error.localizedDescription)
         }

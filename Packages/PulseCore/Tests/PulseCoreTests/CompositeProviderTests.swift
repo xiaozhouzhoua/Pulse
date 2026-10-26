@@ -9,6 +9,7 @@ struct MockProvider: QuoteProvider {
     var quoteError: ProviderError?
     var searchResults: [SymbolInfo] = []
     var candleResult: [Candle] = [Candle(time: .now, open: 1, high: 2, low: 0.5, close: 1.5)]
+    var candleError: ProviderError?
     var candleMarkets: Set<Market>?
     var candlePeriods: Set<CandlePeriod>?
     var quotePrice: Double = 100
@@ -19,6 +20,9 @@ struct MockProvider: QuoteProvider {
     var markets: Set<Market> = Set(Market.allCases)
     var supportsStreaming = false
     var supportsReferenceData = false
+    var supportsProfile = false
+    var profileResult: SecurityProfile?
+    var profileError: ProviderError?
     var referenceNames: [SecurityName] = []
     var referenceError: ProviderError?
     var omittedQuoteCodes: Set<String> = []
@@ -27,6 +31,7 @@ struct MockProvider: QuoteProvider {
         var capabilities: Set<Capability> = [.search, .quotes, .candles]
         if supportsStreaming { capabilities.insert(.streaming) }
         if supportsReferenceData { capabilities.insert(.referenceData) }
+        if supportsProfile { capabilities.insert(.profile) }
         return ProviderDescriptor(id: id, name: id, markets: markets,
                            capabilities: capabilities,
                            candleMarkets: candleMarkets,
@@ -63,8 +68,14 @@ struct MockProvider: QuoteProvider {
         return referenceNames.filter { requested.contains($0.symbol) }
     }
 
+    func profile(for symbol: SymbolID) async throws -> SecurityProfile? {
+        if let profileError { throw profileError }
+        return profileResult
+    }
+
     func candles(for symbol: SymbolID, period: CandlePeriod, count: Int) async throws -> [Candle] {
-        candleResult
+        if let candleError { throw candleError }
+        return candleResult
     }
 
     func quoteStream(for symbols: [SymbolID]) -> AsyncThrowingStream<Quote, any Error>? {

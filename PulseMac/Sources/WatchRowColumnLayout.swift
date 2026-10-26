@@ -61,13 +61,32 @@ enum WatchRowColumnLayout {
         return min(max(max(priceWidth, valueWidth), metrics.minimumMetricWidth), metrics.maximumMetricWidth)
     }
 
+    private static let measureLock = NSLock()
+    /// Text → width memo. Column measurement runs for every row on every list
+    /// render, and streamed ticks re-render the list a few times a second;
+    /// NSString.size dominates that cost. Bounded: price digits churn the key
+    /// space, so past a size threshold it simply starts over.
+    nonisolated(unsafe) private static var widthCache: [String: CGFloat] = [:]
+
     private static func measure(_ text: String, font: NSFont) -> CGFloat {
         // NSFont factory methods can return nil on some system builds, and because
         // Swift types them as non-optional the nil reaches CoreText and crashes
         // size(withAttributes:) with NSInvalidArgumentException. Fall back to a
         // guaranteed system font so text measurement never aborts the app.
         let safeFont = font.pointSize > 0 ? font : NSFont.systemFont(ofSize: NSFont.systemFontSize)
-        return ceil((text as NSString).size(withAttributes: [.font: safeFont]).width)
+        let key = "\(safeFont.fontName)|\(safeFont.pointSize)|\(text)"
+        measureLock.lock()
+        if let cached = widthCache[key] {
+            measureLock.unlock()
+            return cached
+        }
+        measureLock.unlock()
+        let width = ceil((text as NSString).size(withAttributes: [.font: safeFont]).width)
+        measureLock.lock()
+        if widthCache.count > 8_192 { widthCache.removeAll(keepingCapacity: true) }
+        widthCache[key] = width
+        measureLock.unlock()
+        return width
     }
 
     private struct Metrics {

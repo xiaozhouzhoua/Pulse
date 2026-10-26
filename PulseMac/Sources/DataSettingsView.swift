@@ -285,7 +285,7 @@ struct DataSettingsView: View {
 
     private var appVersion: String {
         let version = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String
-        return version.map { "Pulse \($0)" } ?? "Pulse"
+        return version.map { "Tick \($0)" } ?? "Tick"
     }
 
     /// `US · NVDA` for a plain security, plus the resolved identity when Pulse read the

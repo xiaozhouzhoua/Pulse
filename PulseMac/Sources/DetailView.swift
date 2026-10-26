@@ -18,7 +18,18 @@ struct DetailView: View {
     /// answer. Only once this matches the request on screen does an empty
     /// `candles` mean the source had nothing.
     @State private var candlesKey: CandleCacheKey?
+    /// The drawable subset of `sourceCandles` for the session setting on screen.
+    /// Minute-K loads keep every US session, so filtering here — once per data
+    /// change rather than on every body evaluation as quote ticks arrive —
+    /// keeps a whole-series filter pass out of the render path.
+    @State private var onScreenCandles: [Candle] = []
     @State private var isLoading = false
+    /// The load for the request on screen failed and left nothing to show: the
+    /// empty chart is a transport answer, not the source's, so it says so and
+    /// offers a retry instead of claiming the period has no data.
+    @State private var chartLoadFailed = false
+    /// Retrying re-runs the load task; the nonce makes the changed request id.
+    @State private var chartRetryNonce = 0
     @State private var isFirstLoad = true
     @State private var shareFeedback: ShareFeedback?
     /// Owned here (not in the chart) so sharing can read the zoomed candle window.
@@ -28,33 +39,31 @@ struct DetailView: View {
         .minute5, .minute15, .minute30, .hour1,
     ]
 
-    // Page flow: price hero → trend chart → market stats → position.
-    // Source/time/delay metadata sits at the hero's top-right corner, annotating the price.
+    private var density: DetailDensity { DetailDensity(host: host) }
+
     var body: some View {
-        VStack(spacing: 0) {
-            heroSection
-            sectionSeparator
-            chartSection
-            sectionSeparator
-            statsSection
-            positionArea
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .softScrollEdgeEffect(for: .all)
-        // Navigation and instrument identity belong to the page, not the window.
-        // Keeping this row inline also aligns it with the pinned watchlist's first
-        // content row instead of squeezing a long name between the traffic lights
-        // and the title-bar actions.
-        .safeAreaInset(edge: .top, spacing: 0) { header }
+        layout
         .toolbar {
             if host == .pinnedWindow {
                 FlexibleToolbarSpacer()
+            }
+            // Windowed hosts carry page actions in the title bar; the panel has
+            // none and keeps them in its header row.
+            if host != .menuBar {
                 ToolbarItemGroup(placement: .primaryAction) {
                     toolbarActions
                 }
             }
         }
-        .onAppear { maybeOfferKlineTourStep() }
+        .onAppear {
+            // A wide plot spreads the panel's 60 bars into slabs; twice the
+            // history keeps candles at about the width they have in the panel.
+            candleViewport.setPreferredVisibleCount(host == .desktop ? 120 : 60)
+            maybeOfferKlineTourStep()
+        }
+        // The desktop window keeps one page alive across selections; a zoomed
+        // window into the previous symbol's history means nothing for the next.
+        .onChange(of: symbol) { _, _ in candleViewport.reset() }
         .onDisappear {
             // Leaving with the candle bubble up counts as the step seen; the pin
             // stop then presents back on the list. An offer that never fired
@@ -66,6 +75,11 @@ struct DetailView: View {
         // Any period switch is the lesson learned, daily or not.
         .onChange(of: period) { _, _ in
             appState.onboarding.completeStep(.kline)
+        }
+        // Reapply the session filter when the loaded series, the request on
+        // screen, or the extended-hours setting changes — not on every tick.
+        .onChange(of: chartCandleStamp, initial: true) { _, _ in
+            rebuildOnScreenCandles()
         }
         // Real-time push while the page is on screen: each tick lands in the store, and the
         // price / market-time views animate through their existing transitions. Closing the
@@ -93,9 +107,10 @@ struct DetailView: View {
                 try? await Task.sleep(for: .seconds(15))
             }
         }
-        .task(id: chartRequest) {
+        .task(id: ChartRequestID(key: chartRequest, retry: chartRetryNonce)) {
             let request = chartRequest
             let taskStart = ContinuousClock.now
+            chartLoadFailed = false
             // Switching periods repaints from whatever is already cached for the
             // new one, however old, and the refresh replaces it in place — the
             // chart never has to blank out to change resolution. The first load
@@ -117,10 +132,11 @@ struct DetailView: View {
                 spinnerDelay.cancel()
                 isLoading = false
             }
-            let loaded = await appState.engine.loadCandles(
+            let outcome = await appState.engine.loadCandles(
                 for: request.symbol, period: request.period,
                 count: candleCount(for: request.period)
             )
+            let loaded = outcome.candles
             if isFirstLoad {
                 // The first load starts while the push transition is still running,
                 // and Swift Charts' first render is expensive (up to 1440 intraday
@@ -133,6 +149,10 @@ struct DetailView: View {
                 isFirstLoad = false
             }
             guard !Task.isCancelled else { return }
+            if outcome.failed, loaded.isEmpty {
+                chartLoadFailed = true
+                return
+            }
             withAnimation(reduceMotion ? nil : .easeOut(duration: 0.18)) {
                 candles = loaded
                 candlesKey = request
@@ -141,9 +161,72 @@ struct DetailView: View {
     }
 
     /// Symbol + period identify a chart load: the page is reused across symbols,
+    /// so a reload owes itself to either changing. The nonce counts retries.
+    private struct ChartRequestID: Hashable {
+        var key: CandleCacheKey
+        var retry: Int
+    }
+
+    /// Symbol + period identify a chart load: the page is reused across symbols,
     /// so a reload owes itself to either changing.
     private var chartRequest: CandleCacheKey {
         CandleCacheKey(symbol: symbol, period: period)
+    }
+
+    @ViewBuilder
+    private var layout: some View {
+        if host == .desktop {
+            desktopLayout
+        } else {
+            panelLayout
+        }
+    }
+
+    // Page flow: price hero → trend chart → market stats → position.
+    // Source/time/delay metadata sits at the hero's top-right corner, annotating the price.
+    private var panelLayout: some View {
+        VStack(spacing: 0) {
+            heroSection
+            sectionSeparator
+            chartSection
+            sectionSeparator
+            QuoteStatsView(symbol: symbol, density: density)
+            positionArea
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .softScrollEdgeEffect(for: .all)
+        // Navigation and instrument identity belong to the page, not the window.
+        // Keeping this row inline also aligns it with the pinned watchlist's first
+        // content row instead of squeezing a long name between the traffic lights
+        // and the title-bar actions.
+        .safeAreaInset(edge: .top, spacing: 0) { header }
+    }
+
+    /// The desktop window gives the chart the page: stats and the position live in
+    /// the details column beside it, and the instrument's identity moves into the
+    /// window title, where a long name no longer competes with the price.
+    private var desktopLayout: some View {
+        VStack(spacing: 0) {
+            // A new identity per symbol: rolling the digits from one instrument's
+            // price to another's would animate a change that never happened.
+            heroSection
+                .id(symbol)
+            sectionSeparator
+            chartSection
+                .padding(.bottom, density.horizontalPadding)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+        .overlay(alignment: .topTrailing) {
+            if let shareFeedback {
+                ShareFeedbackHUD(feedback: shareFeedback)
+                    .padding(.top, 10)
+                    .padding(.trailing, density.horizontalPadding)
+                    .transition(.opacity.combined(with: .scale(scale: 0.96, anchor: .trailing)))
+                    .allowsHitTesting(false)
+            }
+        }
+        .navigationTitle(appState.displayName(for: symbol))
+        .navigationSubtitle("\(symbol.market.displayName) · \(symbol.displayCode)")
     }
 
     private var quote: Quote? { appState.market.quote(for: symbol) }
@@ -197,11 +280,41 @@ struct DetailView: View {
         return appState.market.cachedCandles(for: chartRequest, maxAge: .infinity) ?? []
     }
 
-    /// Minute K data is fetched with all US sessions so the setting can switch instantly.
-    /// This also removes overnight bars: Pulse's setting promises pre/post, not 24-hour US trading.
-    private var chartCandles: [Candle] {
-        guard period.isMinuteK else { return sourceCandles }
-        return IntradayTradingSession.filterCandles(
+    /// What `onScreenCandles` must be rebuilt for. Count and endpoint times
+    /// stand in for full array equality — enough to catch any reload that
+    /// adds or extends bars while comparing in nanoseconds per body pass.
+    private struct ChartCandleStamp: Equatable {
+        var loadedKey: CandleCacheKey?
+        var requestKey: CandleCacheKey
+        var isFirstLoad: Bool
+        var count: Int
+        var firstTime: TimeInterval
+        var lastTime: TimeInterval
+        var includesExtendedHours: Bool
+    }
+
+    private var chartCandleStamp: ChartCandleStamp {
+        ChartCandleStamp(
+            loadedKey: candlesKey,
+            requestKey: chartRequest,
+            isFirstLoad: isFirstLoad,
+            count: candles.count,
+            firstTime: candles.first?.time.timeIntervalSince1970 ?? 0,
+            lastTime: candles.last?.time.timeIntervalSince1970 ?? 0,
+            includesExtendedHours: appState.showsExtendedHours(for: symbol)
+        )
+    }
+
+    /// Minute K data is fetched with all US sessions so the setting can switch
+    /// instantly; this reapplies the session filter whenever the underlying
+    /// data or the setting changes. Also removes overnight bars: Pulse's
+    /// setting promises pre/post, not 24-hour US trading.
+    private func rebuildOnScreenCandles() {
+        guard period.isMinuteK else {
+            onScreenCandles = sourceCandles
+            return
+        }
+        onScreenCandles = IntradayTradingSession.filterCandles(
             sourceCandles,
             market: symbol.market,
             includesExtendedHours: appState.showsExtendedHours(for: symbol)
@@ -270,7 +383,7 @@ struct DetailView: View {
                     systemImage: "photo"
                 )
             }
-            .disabled(quote == nil || chartCandles.isEmpty)
+            .disabled(quote == nil || onScreenCandles.isEmpty)
             Button {
                 copyShareText()
             } label: {
@@ -304,9 +417,14 @@ struct DetailView: View {
     }
 
     /// Same election as the list page: the pinned window carries the tour while
-    /// it is up, else the panel does.
+    /// it is up, else the panel does. The desktop window teaches through its own
+    /// layout and never hosts the bubbles.
     private var isTourHost: Bool {
-        host == .pinnedWindow || !appState.settings.pinnedWindowVisible
+        switch host {
+        case .pinnedWindow: true
+        case .menuBar: !appState.settings.pinnedWindowVisible
+        case .desktop: false
+        }
     }
 
     private var klineTourBinding: Binding<Bool> {
@@ -373,10 +491,7 @@ struct DetailView: View {
     /// every position-eligible instrument; tapping one that has no item yet
     /// materializes it (restoring dormant history) without list membership.
     private var symbolSupportsPosition: Bool {
-        switch sharedInstrumentType {
-        case .index, .commodity: false
-        default: true
-        }
+        appState.supportsPosition(symbol)
     }
 
     @ViewBuilder private var positionButton: some View {
@@ -411,7 +526,7 @@ struct DetailView: View {
                     systemImage: "photo"
                 )
             }
-            .disabled(quote == nil || chartCandles.isEmpty)
+            .disabled(quote == nil || onScreenCandles.isEmpty)
             Button {
                 copyShareText()
             } label: {
@@ -502,13 +617,7 @@ struct DetailView: View {
     /// instrument stays out of every list.
     @MainActor
     private func openPositions() {
-        if appState.watchlist.item(for: symbol) == nil {
-            appState.watchlist.materializeItem(SymbolInfo(
-                symbol: symbol,
-                name: appState.market.quote(for: symbol)?.name ?? appState.displayName(for: symbol)
-            ))
-            appState.engine.poke()
-        }
+        appState.prepareForPositionEditing(symbol)
         route = .position(symbol, .detail(symbol))
     }
 
@@ -516,7 +625,7 @@ struct DetailView: View {
     private var sharedCandles: [Candle] {
         // K-line exports use exactly the zoomed window on screen; the intraday
         // chart keeps the full session, whose frame is its own context.
-        let allCandles = chartCandles
+        let allCandles = onScreenCandles
         if period == .minute1 {
             return IntradayTrendSnapshot(
                 candles: allCandles,
@@ -528,11 +637,7 @@ struct DetailView: View {
     }
 
     private var sharedInstrumentType: InstrumentType? {
-        if let type = item?.resolvedInstrumentType { return type }
-        if symbol.indexID != nil { return .index }
-        if symbol.metalID != nil { return .commodity }
-        if symbol.cryptoPair != nil { return .crypto }
-        return nil
+        appState.instrumentType(for: symbol)
     }
 
     @MainActor
@@ -606,15 +711,15 @@ struct DetailView: View {
 
     private var heroSection: some View {
         HStack(alignment: .bottom, spacing: 12) {
-            VStack(alignment: .leading, spacing: 3) {
+            VStack(alignment: .leading, spacing: density == .compact ? 3 : 5) {
                 if let quote {
                     let color = appState.palette.color(for: quote.change)
                     Text(quotePriceLabel(for: quote))
-                        .font(.system(size: 9, weight: .medium))
+                        .font(.system(size: density.priceLabelSize, weight: .medium))
                         .foregroundStyle(.tertiary)
-                    HStack(alignment: .firstTextBaseline, spacing: 5) {
+                    HStack(alignment: .firstTextBaseline, spacing: density == .compact ? 5 : 7) {
                         Text(PriceFormatter.price(quote.price, market: symbol.market))
-                            .font(.system(size: 28, weight: .semibold).monospacedDigit())
+                            .font(.system(size: density.priceSize, weight: .semibold).monospacedDigit())
                             .foregroundStyle(color)
                             // Animate the same magnitude the string prints so a third
                             // decimal the market allows stays in sync with the transition.
@@ -634,27 +739,21 @@ struct DetailView: View {
                             .minimumScaleFactor(0.82)
                         if let currency = quote.currencyCode {
                             Text(currency)
-                                .font(.system(size: 10, weight: .semibold))
+                                .font(.system(size: density.currencySize, weight: .semibold))
                                 .foregroundStyle(.tertiary)
                         }
                     }
-                    HStack(alignment: .firstTextBaseline, spacing: 6) {
-                        Text(PriceFormatter.change(quote.change, market: symbol.market))
-                            .font(.system(size: 12, weight: .medium).monospacedDigit())
-                        Text(PriceFormatter.percent(quote.changePercent))
-                            .font(.system(size: 12, weight: .semibold).monospacedDigit())
-                    }
-                    .foregroundStyle(color)
+                    changePill(for: quote, color: color)
                     if let regularClose = regularCloseDisplay(for: quote) {
                         regularCloseRow(regularClose)
                             .padding(.top, 3)
                     }
                 } else {
                     Text(PulseLocalization.localizedString("quote.price.current"))
-                        .font(.system(size: 9, weight: .medium))
+                        .font(.system(size: density.priceLabelSize, weight: .medium))
                         .foregroundStyle(.tertiary)
                     Text("—")
-                        .font(.system(size: 28, weight: .semibold))
+                        .font(.system(size: density.priceSize, weight: .semibold))
                         .foregroundStyle(.secondary)
                 }
             }
@@ -662,18 +761,26 @@ struct DetailView: View {
             Spacer(minLength: 8)
             // The column is bottom-aligned to the price, so it grows upward:
             // the summary link goes on top, where arriving late pushes nothing
-            // that was already there.
+            // that was already there. On the desktop window the details column
+            // owns that link — unless the column is hidden, where the hero is
+            // the page's only way into the summary.
             VStack(alignment: .trailing, spacing: 6) {
-                if symbol.isDescribable {
+                if symbol.isDescribable,
+                   host != .desktop || !appState.settings.desktopDetailsVisible {
                     aboutLink
                 }
                 if let quote {
-                    quoteMeta(for: quote)
+                    // Staleness is measured against the wall clock, so a frozen
+                    // quote changes nothing the view observes — this block alone
+                    // re-evaluates on a timer to let the label catch up.
+                    TimelineView(.periodic(from: .now, by: 30)) { _ in
+                        quoteMeta(for: quote)
+                    }
                 }
             }
         }
-        .padding(.horizontal, 12)
-        .padding(.top, 8)
+        .padding(.horizontal, density.horizontalPadding)
+        .padding(.top, density == .compact ? 8 : 18)
     }
 
     /// The way into the business summary. It lives in the hero's annotation
@@ -689,32 +796,77 @@ struct DetailView: View {
             HStack(spacing: 2) {
                 Text(PulseLocalization.localizedString("detail.section.about"))
                 Image(systemName: "chevron.right")
-                    .font(.system(size: 7, weight: .semibold))
+                    .font(.system(size: density == .compact ? 7 : 9, weight: .semibold))
             }
-            .font(.system(size: 9, weight: .medium))
+            .font(.system(size: density.metaSize, weight: .medium))
             .foregroundStyle(.secondary)
             .contentShape(Rectangle())
         }
         .buttonStyle(.pressable)
     }
 
+    /// The session's result as a tinted capsule — the same treatment the shared
+    /// image gives it (arrow, percent, change), so the page and its export never
+    /// disagree. Digits roll with each tick like the price above; a flat session
+    /// keeps the capsule in the neutral secondary tint.
+    private func changePill(for quote: Quote, color: Color) -> some View {
+        let isCompact = density == .compact
+        return HStack(spacing: 4) {
+            if quote.change != 0 {
+                Image(systemName: quote.change > 0 ? "arrowtriangle.up.fill" : "arrowtriangle.down.fill")
+                    .font(.system(size: isCompact ? 7 : 9, weight: .bold))
+            }
+            Text(PriceFormatter.percent(quote.changePercent))
+                .font(.system(size: density.changeSize, weight: .semibold).monospacedDigit())
+                .contentTransition(reduceMotion ? .opacity : .numericText())
+                .animation(.snappy(duration: 0.25), value: quote.changePercent)
+            Text(PriceFormatter.change(quote.change, market: symbol.market))
+                .font(.system(size: density.changeSize, weight: .medium).monospacedDigit())
+                .opacity(0.9)
+                .contentTransition(
+                    reduceMotion
+                        ? .opacity
+                        : .numericText(value: PriceFormatter.animatablePrice(
+                            quote.change,
+                            market: symbol.market
+                        ))
+                )
+                .animation(
+                    .snappy(duration: 0.25),
+                    value: PriceFormatter.animatablePrice(quote.change, market: symbol.market)
+                )
+        }
+        .foregroundStyle(color)
+        .lineLimit(1)
+        .fixedSize(horizontal: true, vertical: false)
+        .padding(.horizontal, isCompact ? 8 : 10)
+        .padding(.vertical, isCompact ? 3 : 4)
+        .background(
+            color.opacity(0.13),
+            in: RoundedRectangle(cornerRadius: isCompact ? 6 : 8, style: .continuous)
+        )
+    }
+
     /// Quote provenance at the hero's top-right: freshness, source, then market-time basis.
     /// Bottom-aligns with the price block so the metadata reads as an annotation to the quote.
     private func quoteMeta(for quote: Quote) -> some View {
         let delayText = appState.quoteDelayText(for: quote)
-        // A polled source is current but steps; saying so next to "realtime"
-        // keeps the word honest without spending another line.
-        let freshness = [delayText ?? PulseLocalization.localizedString("quote.realtime"),
+        let stallText = appState.quoteStallText(for: quote)
+        // A stalled quote replaces the freshness labels outright: it explains the
+        // frozen market time below better than "realtime" or the source's delay.
+        let freshness = stallText ?? [delayText ?? PulseLocalization.localizedString("quote.realtime"),
                          appState.quoteCadenceText(for: quote)]
             .compactMap { $0 }
             .joined(separator: " · ")
-        return VStack(alignment: .trailing, spacing: 4) {
-            HStack(spacing: 4) {
+        let isCurrent = delayText == nil && stallText == nil
+        let dotSize: CGFloat = density == .compact ? 5 : 7
+        return VStack(alignment: .trailing, spacing: density == .compact ? 4 : 5) {
+            HStack(spacing: density == .compact ? 4 : 5) {
                 Circle()
-                    .fill(delayText == nil ? Color.green.opacity(0.8) : .orange)
-                    .frame(width: 5, height: 5)
+                    .fill(isCurrent ? Color.green.opacity(0.8) : .orange)
+                    .frame(width: dotSize, height: dotSize)
                 Text(freshness)
-                    .foregroundStyle(delayText == nil ? AnyShapeStyle(.tertiary) : AnyShapeStyle(Color.orange.opacity(0.85)))
+                    .foregroundStyle(isCurrent ? AnyShapeStyle(.tertiary) : AnyShapeStyle(Color.orange.opacity(0.85)))
             }
             if let sourceName = quote.sourceName {
                 Text(sourceName)
@@ -727,12 +879,12 @@ struct DetailView: View {
                 .contentTransition(reduceMotion ? .opacity : .numericText())
                 .animation(.snappy(duration: 0.25), value: quote.timestamp)
         }
-        .font(.system(size: 9, weight: .medium))
+        .font(.system(size: density.metaSize, weight: .medium))
         .multilineTextAlignment(.trailing)
         .lineLimit(1)
         .minimumScaleFactor(0.8)
         .allowsTightening(true)
-        .frame(maxWidth: 132, alignment: .trailing)
+        .frame(maxWidth: density.metaMaxWidth, alignment: .trailing)
     }
 
     /// The last regular session's result, shown under the live extended-session
@@ -756,17 +908,17 @@ struct DetailView: View {
         let color = close.change.map { appState.palette.color(for: $0) }
         return HStack(alignment: .firstTextBaseline, spacing: 6) {
             Text(display.label)
-                .font(.system(size: 10, weight: .medium))
+                .font(.system(size: density.regularCloseLabelSize, weight: .medium))
                 .foregroundStyle(.secondary)
             Text(PriceFormatter.price(close.price, market: symbol.market))
-                .font(.system(size: 12, weight: .semibold).monospacedDigit())
+                .font(.system(size: density.regularClosePriceSize, weight: .semibold).monospacedDigit())
                 .foregroundStyle(color ?? .secondary)
             if let change = close.change, let percent = close.changePercent {
                 Text(PriceFormatter.change(change, market: symbol.market))
-                    .font(.system(size: 11, weight: .medium).monospacedDigit())
+                    .font(.system(size: density.regularCloseChangeSize, weight: .medium).monospacedDigit())
                     .foregroundStyle(color ?? .secondary)
                 Text(PriceFormatter.percent(percent))
-                    .font(.system(size: 11, weight: .semibold).monospacedDigit())
+                    .font(.system(size: density.regularCloseChangeSize, weight: .semibold).monospacedDigit())
                     .foregroundStyle(color ?? .secondary)
             }
         }
@@ -793,14 +945,14 @@ struct DetailView: View {
     // MARK: - Chart
 
     private var chartSection: some View {
-        VStack(spacing: 7) {
+        VStack(spacing: density == .compact ? 7 : 12) {
             chartHeader
-            .padding(.horizontal, 12)
-            // Leading 10 + the intraday plot's own 2pt inset lands the plot edge on the 12pt text grid;
-            // trailing 12 aligns the y-axis labels with it directly.
+            .padding(.horizontal, density.horizontalPadding)
+            // Leading inset 2pt short of the text grid: the intraday plot's own 2pt inset
+            // lands its edge on the grid; the trailing inset aligns the y-axis labels directly.
             chart
-                .padding(.leading, 10)
-                .padding(.trailing, 12)
+                .padding(.leading, density.horizontalPadding - 2)
+                .padding(.trailing, density.horizontalPadding)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
@@ -813,7 +965,7 @@ struct DetailView: View {
                 sectionHeaderText(PulseLocalization.localizedString("detail.section.trend"))
                 Spacer(minLength: 0)
                 picker
-                    .frame(width: 260)
+                    .frame(width: density.periodPickerWidth)
             }
 
             VStack(alignment: .leading, spacing: 6) {
@@ -824,7 +976,8 @@ struct DetailView: View {
     }
 
     private var picker: some View {
-        HStack(spacing: 4) {
+        let cornerRadius: CGFloat = density == .compact ? 6 : 8
+        return HStack(spacing: density == .compact ? 4 : 5) {
             periodButton(.minute1)
             minutePeriodMenu
             periodButton(.day)
@@ -834,13 +987,13 @@ struct DetailView: View {
             periodButton(.week)
             periodButton(.month)
         }
-        .padding(2)
+        .padding(density == .compact ? 2 : 3)
         .background(
-            RoundedRectangle(cornerRadius: 6, style: .continuous)
+            RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
                 .fill(Color.primary.opacity(colorScheme == .dark ? 0.09 : 0.055))
         )
         .overlay(
-            RoundedRectangle(cornerRadius: 6, style: .continuous)
+            RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
                 .stroke(.separator.opacity(0.5), lineWidth: 0.5)
         )
         .accessibilityElement(children: .contain)
@@ -873,7 +1026,7 @@ struct DetailView: View {
                     .minimumScaleFactor(0.85)
                     .fixedSize(horizontal: true, vertical: false)
                     .frame(maxWidth: .infinity)
-                    .frame(height: 20)
+                    .frame(height: density.periodControlHeight)
                     .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
@@ -897,8 +1050,8 @@ struct DetailView: View {
                 }
             } label: {
                 Image(systemName: "chevron.down")
-                    .font(.system(size: 5.5, weight: .semibold))
-                    .frame(width: 18, height: 20)
+                    .font(.system(size: density.periodChevronSize, weight: .semibold))
+                    .frame(width: density.periodChevronWidth, height: density.periodControlHeight)
                     .contentShape(Rectangle())
             }
             .menuStyle(.button)
@@ -906,7 +1059,7 @@ struct DetailView: View {
             .menuIndicator(.hidden)
             .help(selected.displayName)
         }
-        .font(.system(size: 9, weight: period.isMinuteK ? .semibold : .medium))
+        .font(.system(size: density.periodFontSize, weight: period.isMinuteK ? .semibold : .medium))
         .foregroundStyle(period.isMinuteK ? .primary : .secondary)
         .frame(maxWidth: .infinity)
         .background {
@@ -922,10 +1075,10 @@ struct DetailView: View {
             .lineLimit(1)
             .minimumScaleFactor(0.85)
             .fixedSize(horizontal: true, vertical: false)
-            .font(.system(size: 9, weight: isSelected ? .semibold : .medium))
+            .font(.system(size: density.periodFontSize, weight: isSelected ? .semibold : .medium))
             .foregroundStyle(isSelected ? .primary : .secondary)
             .frame(maxWidth: .infinity)
-            .frame(height: 20)
+            .frame(height: density.periodControlHeight)
             .contentShape(Rectangle())
             .background {
                 periodSelectionBackground(isSelected: isSelected)
@@ -944,27 +1097,66 @@ struct DetailView: View {
         }
     }
 
+    /// What the chart area shows. As the animation token this enum is what the
+    /// declared transitions were missing: animating on bare emptiness never
+    /// fired between the empty-state variants (no data ↔ failed ↔ spinner),
+    /// because all of them keep the candle list empty.
+    private enum ChartPhase: Equatable {
+        /// The load for what is on screen came back with nothing.
+        case noData
+        /// The ask failed outright: a retry, not a verdict about the symbol's history.
+        case loadFailed
+        case loading
+        /// Nothing yet: a load that answers inside the spinner's 150ms grace
+        /// period goes straight to the chart.
+        case waiting
+        case minute1
+        case candles
+    }
+
+    private var chartPhase: ChartPhase {
+        if !onScreenCandles.isEmpty {
+            return period == .minute1 ? .minute1 : .candles
+        }
+        if candlesKey == chartRequest { return .noData }
+        if chartLoadFailed { return .loadFailed }
+        if isLoading { return .loading }
+        return .waiting
+    }
+
     @ViewBuilder
     private var chart: some View {
+        let phase = chartPhase
         ZStack {
-            if chartCandles.isEmpty {
-                if candlesKey == chartRequest {
-                    // The load for what is on screen came back with nothing.
-                    // Anything else — a switch still settling, a request in
-                    // flight — is not yet an answer and must not claim to be one.
-                    ContentUnavailableView {
-                        Label(PulseLocalization.localizedString("chart.noData"), systemImage: "chart.xyaxis.line")
-                    } description: {
-                        Text(PulseLocalization.localizedString("chart.noPeriodData", period.displayName))
-                    }
-                    .transition(.opacity)
-                } else if isLoading {
-                    ChartLoadingView()
-                        .transition(.opacity)
+            switch phase {
+            case .noData:
+                ContentUnavailableView {
+                    Label(PulseLocalization.localizedString("chart.noData"), systemImage: "chart.xyaxis.line")
+                } description: {
+                    Text(PulseLocalization.localizedString("chart.noPeriodData", period.displayName))
                 }
-                // Otherwise nothing yet: a load that answers inside the spinner's
-                // 150ms grace period goes straight to the chart.
-            } else if period == .minute1 {
+                .transition(.opacity)
+            case .loadFailed:
+                ContentUnavailableView {
+                    Label(
+                        PulseLocalization.localizedString("chart.loadFailed"),
+                        systemImage: "wifi.exclamationmark"
+                    )
+                } description: {
+                    Text(PulseLocalization.localizedString("chart.loadFailedHint"))
+                } actions: {
+                    Button(PulseLocalization.localizedString("action.retry")) {
+                        chartRetryNonce += 1
+                    }
+                    .buttonStyle(.borderedProminent)
+                }
+                .transition(.opacity)
+            case .loading:
+                ChartLoadingView()
+                    .transition(.opacity)
+            case .waiting:
+                EmptyView()
+            case .minute1:
                 IntradayChartView(
                     candles: sourceCandles,
                     previousClose: quote?.previousClose ?? sourceCandles.first?.open ?? 0,
@@ -973,9 +1165,9 @@ struct DetailView: View {
                     showsExtendedHours: appState.showsExtendedHours(for: symbol)
                 )
                 .transition(.opacity)
-            } else {
+            case .candles:
                 CandlestickChartView(
-                    candles: chartCandles,
+                    candles: onScreenCandles,
                     palette: appState.palette,
                     period: period,
                     market: symbol.market,
@@ -987,50 +1179,20 @@ struct DetailView: View {
                     currencyCode: currencyCode,
                     viewport: candleViewport
                 )
-                    .transition(.opacity)
+                .transition(.opacity)
             }
         }
-        .animation(.easeOut(duration: 0.18), value: chartCandles.isEmpty)
+        .animation(reduceMotion ? nil : .easeOut(duration: 0.18), value: chartPhase)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-    }
-
-    // MARK: - Market stats
-
-    private var statsSection: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            sectionHeaderText(PulseLocalization.localizedString("detail.section.market"))
-            HStack(spacing: 8) {
-                stat(PulseLocalization.localizedString("stat.open"), quote?.open.map { PriceFormatter.price($0, market: symbol.market) })
-                stat(PulseLocalization.localizedString("stat.high"), quote?.high.map { PriceFormatter.price($0, market: symbol.market) })
-                stat(PulseLocalization.localizedString("stat.low"), quote?.low.map { PriceFormatter.price($0, market: symbol.market) })
-            }
-            HStack(spacing: 8) {
-                stat(PulseLocalization.localizedString("stat.previousClose"), quote.map { PriceFormatter.price($0.previousClose, market: symbol.market) })
-                stat(PulseLocalization.localizedString("stat.volume"), quote?.volume.map(PriceFormatter.compact))
-                stat(PulseLocalization.localizedString("stat.amplitude"), quote?.amplitudePercent.map(PriceFormatter.percentMagnitude))
-            }
-        }
-        .padding(.horizontal, 12)
     }
 
     // MARK: - Position
 
-    /// Display driver for the position area: the live item when present,
-    /// otherwise dormant history — an instrument removed from every list keeps
-    /// its records visible here. Mutating goes through `openPositions()`, which
-    /// materializes first.
-    private var positionDisplayItem: WatchItem? {
-        item ?? appState.watchlist.retainedHistoryItem(for: symbol)
-    }
-
     @ViewBuilder
     private var positionArea: some View {
-        if symbolSupportsPosition {
+        if PositionSummaryView.hasContent(for: symbol, in: appState) {
             sectionSeparator
-            positionSection
-        } else if let item, item.hasPosition {
-            sectionSeparator
-            legacyIndexPositionSection
+            PositionSummaryView(symbol: symbol, density: density, onOpen: openPositions)
         } else {
             // Position sections supply this inset themselves. Keep the same
             // bottom breathing room when indices intentionally omit the section.
@@ -1040,177 +1202,16 @@ struct DetailView: View {
         }
     }
 
-    @ViewBuilder
-    private var positionSection: some View {
-        Group {
-            if let item = positionDisplayItem, item.hasPosition {
-                // The whole summary is the way into the position hub — same
-                // destination as the header briefcase, but where the eye
-                // already is.
-                Button {
-                    openPositions()
-                } label: {
-                    VStack(alignment: .leading, spacing: 8) {
-                        HStack(spacing: 4) {
-                            sectionHeaderText(PulseLocalization.localizedString("detail.section.position"))
-                            Spacer(minLength: 0)
-                            Image(systemName: "chevron.right")
-                                .font(.system(size: 8, weight: .semibold))
-                                .foregroundStyle(.tertiary)
-                        }
-                        if let quote, let metrics = PositionMetrics(item: item, quote: quote) {
-                            HStack(spacing: 8) {
-                                pnlCell(PulseLocalization.localizedString("metric.todayPnL"), amount: metrics.todayPnL, percent: metrics.todayReturnPercent)
-                                pnlCell(PulseLocalization.localizedString("metric.totalPnL"), amount: metrics.totalPnL, percent: metrics.totalReturnPercent)
-                            }
-                            HStack(spacing: 8) {
-                                stat(PulseLocalization.localizedString("position.quantity"), PriceFormatter.quantity(metrics.quantity))
-                                stat(PulseLocalization.localizedString("position.cost"), PriceFormatter.price(metrics.averageCost))
-                                stat(PulseLocalization.localizedString("position.marketValue"), PriceFormatter.money(metrics.marketValue, currencyCode: currencyCode))
-                            }
-                        } else {
-                            Text(PulseLocalization.localizedString("position.waitingQuote"))
-                                .font(.system(size: 10.5))
-                                .foregroundStyle(.tertiary)
-                        }
-                    }
-                    .contentShape(Rectangle())
-                }
-                .buttonStyle(.pressable)
-            } else if let item = positionDisplayItem, item.hasPositionHistory {
-                // Selling out is not the same as never having held: the trade
-                // log and what it realized outlive the position, and dropping
-                // straight back to "no position" reads as if the record was
-                // lost. Same target and same whole-block tap as an open one.
-                Button {
-                    openPositions()
-                } label: {
-                    VStack(alignment: .leading, spacing: 8) {
-                        HStack(spacing: 4) {
-                            sectionHeaderText(PulseLocalization.localizedString("detail.section.position"))
-                            Text(PulseLocalization.localizedString("position.closed"))
-                                .font(.system(size: 9, weight: .medium))
-                                .foregroundStyle(.tertiary)
-                            Spacer(minLength: 0)
-                            Image(systemName: "chevron.right")
-                                .font(.system(size: 8, weight: .semibold))
-                                .foregroundStyle(.tertiary)
-                        }
-                        HStack(spacing: 8) {
-                            stat(
-                                PulseLocalization.localizedString("position.realizedPnL"),
-                                PriceFormatter.signedMoney(item.realizedPnL, currencyCode: currencyCode),
-                                color: item.realizedPnL
-                            )
-                            stat(
-                                PulseLocalization.localizedString("position.historyTrades"),
-                                PulseLocalization.localizedString("position.tradeCount", item.transactions.count)
-                            )
-                        }
-                    }
-                    .contentShape(Rectangle())
-                }
-                .buttonStyle(.pressable)
-            } else {
-                VStack(alignment: .leading, spacing: 8) {
-                    sectionHeaderText(PulseLocalization.localizedString("detail.section.position"))
-                    HStack {
-                        Text(PulseLocalization.localizedString("position.notSet"))
-                            .font(.system(size: 10.5))
-                            .foregroundStyle(.tertiary)
-                        Spacer()
-                        Button(PulseLocalization.localizedString("action.addPosition")) {
-                            openPositions()
-                        }
-                        .buttonStyle(.pressable)
-                        .font(.system(size: 10.5, weight: .medium))
-                        .foregroundStyle(.tint)
-                    }
-                }
-            }
-        }
-        .padding(.horizontal, 12)
-        .padding(.bottom, 12)
-    }
-
-    private var legacyIndexPositionSection: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            sectionHeaderText(PulseLocalization.localizedString("detail.section.position"))
-            HStack(alignment: .firstTextBaseline, spacing: 8) {
-                Text(PulseLocalization.localizedString("position.indexLegacyNotice"))
-                    .font(.system(size: 10.5))
-                    .foregroundStyle(.tertiary)
-                    .fixedSize(horizontal: false, vertical: true)
-                Spacer(minLength: 8)
-                Button(PulseLocalization.localizedString("action.clearPosition"), role: .destructive) {
-                    appState.watchlist.clearPosition(symbol)
-                }
-                .buttonStyle(.pressable)
-                .font(.system(size: 10.5, weight: .medium))
-            }
-        }
-        .padding(.horizontal, 12)
-        .padding(.bottom, 12)
-    }
-
-    /// P&L cell: signed amount with its percent on a shared baseline, tinted by direction.
-    private func pnlCell(_ label: String, amount: Double, percent: Double) -> some View {
-        VStack(alignment: .leading, spacing: 2) {
-            Text(label)
-                .font(.system(size: 9))
-                .foregroundStyle(.tertiary)
-                .lineLimit(1)
-                .minimumScaleFactor(0.8)
-                .allowsTightening(true)
-            HStack(alignment: .firstTextBaseline, spacing: 5) {
-                Text(PriceFormatter.signedMoney(amount, currencyCode: currencyCode))
-                    .font(.system(size: 12.5, weight: .semibold).monospacedDigit())
-                Text(PriceFormatter.percent(percent))
-                    .font(.system(size: 10, weight: .medium).monospacedDigit())
-                    .opacity(0.9)
-            }
-            .foregroundStyle(appState.palette.color(for: amount))
-            .lineLimit(1)
-            .minimumScaleFactor(0.75)
-            .allowsTightening(true)
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-    }
-
     // MARK: - Shared pieces
 
     private var sectionSeparator: some View {
         Divider()
             .opacity(0.45)
-            .padding(.horizontal, 12)
-            .padding(.vertical, 8)
+            .padding(.horizontal, density.horizontalPadding)
+            .padding(.vertical, density.separatorVerticalPadding)
     }
 
     private func sectionHeaderText(_ title: String) -> some View {
-        Text(title)
-            .font(.system(size: 10, weight: .medium))
-            .foregroundStyle(.secondary)
-            .lineLimit(1)
-            .fixedSize(horizontal: true, vertical: false)
-    }
-
-    /// `color` carries a signed amount when the value should read as a gain or
-    /// a loss; without it the stat stays neutral, like quantity or cost.
-    private func stat(_ label: String, _ value: String?, color: Double? = nil) -> some View {
-        VStack(alignment: .leading, spacing: 2) {
-            Text(label)
-                .font(.system(size: 9))
-                .foregroundStyle(.tertiary)
-                .lineLimit(1)
-                .minimumScaleFactor(0.8)
-                .allowsTightening(true)
-            Text(value ?? "—")
-                .font(.system(size: 10.5, weight: color == nil ? .medium : .semibold).monospacedDigit())
-                .foregroundStyle(color.map { appState.palette.color(for: $0) } ?? .secondary)
-                .lineLimit(1)
-                .minimumScaleFactor(0.75)
-                .allowsTightening(true)
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
+        DetailSectionHeader(title: title, density: density)
     }
 }

@@ -11,13 +11,13 @@ public enum ProviderCredentialStore {
         public let status: OSStatus
     }
 
-    private static let baseService = "app.pulse.providers"
+    private static let baseService = "local.quote.providers"
 
     /// Debug and release builds must never silently consume each other's secrets.
     private static var service: String {
         switch Bundle.main.bundleIdentifier {
-        case "app.pulse.mac", "app.pulse.ios": "\(baseService).release"
-        case "app.pulse.mac.dev", "app.pulse.ios.dev": "\(baseService).debug"
+        case "local.quote.mac", "local.quote.ios": "\(baseService).release"
+        case "local.quote.mac.dev", "local.quote.ios.dev": "\(baseService).debug"
         default: baseService
         }
     }

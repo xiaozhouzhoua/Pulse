@@ -94,10 +94,44 @@ public struct Quote: Codable, Sendable, Hashable {
         return change / previousClose * 100
     }
 
-    /// Today's high-low range as a percentage of the previous close.
+    /// The session's high-low range as a percentage of the close it traded against.
     /// This is provider-independent because both quote sources expose high, low, and previous close.
     public var amplitudePercent: Double? {
-        guard let high, let low, previousClose > 0, high >= low else { return nil }
-        return (high - low) / previousClose * 100
+        let reference = sessionReferenceClose
+        guard let high, let low, reference > 0, high >= low else { return nil }
+        return (high - low) / reference * 100
+    }
+
+    /// The close the latest regular session traded against: the previous close that
+    /// belongs with the open, high, and low a quote reports. An extended price moves
+    /// against that session's own close, so in post-market and overnight
+    /// `previousClose` is the session's close and the reference comes from
+    /// `regularSession` instead.
+    public var sessionReferenceClose: Double {
+        switch marketState {
+        case .postMarket, .overnight:
+            regularSession?.previousClose ?? previousClose
+        case .preMarket, .regular, .closed, .none:
+            previousClose
+        }
+    }
+
+    /// Baseline for an intraday chart, which draws the newest session that has bars.
+    /// Pre-market bars open the new day only on a chart that includes extended hours;
+    /// without them the chart still draws the completed session, which is measured
+    /// against the close before it like any completed session.
+    public func intradayReferenceClose(includesExtendedHours: Bool) -> Double {
+        if marketState == .preMarket, !includesExtendedHours {
+            return regularSession?.previousClose ?? previousClose
+        }
+        return sessionReferenceClose
+    }
+
+    /// The change of the regular session an intraday chart draws, which is what its
+    /// line is tinted by. An extended-hours move belongs to the wings, not the session.
+    public func intradaySessionChange(includesExtendedHours: Bool) -> Double {
+        let opensNewDay = marketState == .preMarket && includesExtendedHours
+        let sessionClose = opensNewDay ? price : (regularSession?.price ?? price)
+        return sessionClose - intradayReferenceClose(includesExtendedHours: includesExtendedHours)
     }
 }

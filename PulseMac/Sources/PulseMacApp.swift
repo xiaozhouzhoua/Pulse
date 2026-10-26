@@ -3,16 +3,16 @@ import SwiftUI
 import PulseCore
 import PulseUI
 
-/// Receives custom-scheme URLs (the Longbridge OAuth callback). A menu bar app's popover
-/// view hierarchy may not be alive when the browser redirects back, so the app delegate is
-/// the reliable entry point rather than `onOpenURL`.
+/// Receives custom-scheme URLs (the Longbridge OAuth callback). The window that started
+/// the authorization may be closed by the time the browser redirects back, so the app
+/// delegate is the reliable entry point rather than `onOpenURL`.
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate {
     static var urlHandler: ((URL) -> Void)?
     static private(set) var isTerminating = false
-    /// Launching the already-running app again (Applications double-click, Spotlight)
-    /// is the one gesture an accessory app can answer visibly. Presenting the floating
-    /// window is that answer; silence here reads as "the app didn't start".
+    /// Clicking the Dock icon, or launching the running app again (Applications
+    /// double-click, Spotlight), brings the main window back even while the floating
+    /// window is up: that window is an accessory to the main one, not a stand-in.
     static var reopenHandler: (() -> Void)?
 
     func application(_ application: NSApplication, open urls: [URL]) {
@@ -30,6 +30,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         Self.reopenHandler?()
         return false
     }
+
+    /// Closing the main window leaves the menu bar item and the Dock icon running,
+    /// the way a quote ticker is expected to keep going.
+    func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
+        false
+    }
 }
 
 @main
@@ -43,14 +49,22 @@ struct PulseMacApp: App {
         let state = AppState()
         PulseTelemetry.configure(collectionEnabled: state.settings.shareAnonymousUsageData)
         PulseTelemetry.signal(.appLaunched)
-        // Decided once here, not read live in `body`: the welcome item is marked seen
-        // while the window is up, and launch behavior must not flip mid-session.
-        state.onboarding.welcomeSessionActive = state.onboarding.shouldPresentWelcomeWindow
+        // The main window opens at every launch and is what a new install sees first,
+        // so the floating welcome window of the menu-bar-only app never presents.
+        state.onboarding.welcomeSessionActive = false
         _appState = State(initialValue: state)
         AppDelegate.urlHandler = { url in state.handleOAuthCallback(url) }
     }
 
+    private static var displayName: String {
+        Bundle.main.object(forInfoDictionaryKey: "CFBundleDisplayName") as? String ?? "Tick"
+    }
+
     var body: some Scene {
+        // First on purpose: SwiftUI presents the first window scene at launch, which
+        // is what makes this the app's main window.
+        desktopWindow
+
         MenuBarExtra {
             PopoverRootView()
                 .environment(appState)
@@ -63,6 +77,27 @@ struct PulseMacApp: App {
         .menuBarExtraStyle(.window)
 
         pinnedWindowBase
+
+        Settings {
+            SettingsWindowRoot()
+                .environment(appState)
+                .environment(\.locale, appState.settings.locale)
+                .environment(\.pulseHost, .desktop)
+        }
+    }
+
+    private var desktopWindow: some Scene {
+        Window(Self.displayName, id: DesktopWindow.id) {
+            DesktopRootView()
+                .environment(appState)
+                .environment(\.locale, appState.settings.locale)
+                .environment(\.pulseHost, .desktop)
+        }
+        .defaultSize(width: DesktopWindow.defaultSize.width, height: DesktopWindow.defaultSize.height)
+        .windowResizability(.contentMinSize)
+        .commands {
+            QuoteCommands(appState: appState)
+        }
     }
 
     private var pinnedWindowBase: some Scene {
@@ -74,7 +109,7 @@ struct PulseMacApp: App {
         // group: macOS collapses the whole toolbar into a `»` overflow button, burying
         // four one-click actions in a submenu. The actions win; the app's identity is
         // already carried by the Dock icon and the menu bar item.
-        Window("Pulse", id: PinnedWindow.id) {
+        Window("Tick", id: PinnedWindow.id) {
             PinnedWindowHost(settings: appState.settings) {
                 PopoverRootView()
                     .environment(appState)
@@ -113,8 +148,38 @@ struct PulseMacApp: App {
         // regardless. The strip stays; it is also the drag handle and close button.
         .windowStyle(.hiddenTitleBar)
         .windowResizability(.contentSize)
+        // Both windows are titled with the app's name; listing this one in the
+        // Window menu too would offer two identical entries. The pin and the menu
+        // bar item are its ways in.
+        .commandsRemoved()
     }
 
+}
+
+/// Menu commands for the regular app: the sidebar toggle, refresh, and a way back to
+/// the main window. Settings… (⌘,) comes with the Settings scene.
+struct QuoteCommands: Commands {
+    let appState: AppState
+    @Environment(\.openWindow) private var openWindow
+
+    var body: some Commands {
+        SidebarCommands()
+        CommandGroup(after: .sidebar) {
+            Button(PulseLocalization.localizedString("action.refreshNow")) {
+                PulseTelemetry.signal(.manualRefreshRequested)
+                appState.engine.poke()
+            }
+            .keyboardShortcut("r", modifiers: .command)
+        }
+        CommandGroup(before: .windowList) {
+            Button(PulseLocalization.localizedString("action.openMainWindow")) {
+                openWindow(id: DesktopWindow.id)
+                DesktopWindow.activate()
+            }
+            .keyboardShortcut("0", modifiers: .command)
+            Divider()
+        }
+    }
 }
 
 struct MenuBarLabel: View {
@@ -127,7 +192,7 @@ struct MenuBarLabel: View {
         guard let source = NSImage(named: "PulseMenuBarIcon") else {
             let fallback = NSImage(
                 systemSymbolName: "waveform.path.ecg",
-                accessibilityDescription: "Pulse"
+                accessibilityDescription: "Tick"
             ) ?? NSImage(size: canvasSize)
             fallback.size = canvasSize
             fallback.isTemplate = true
@@ -159,7 +224,7 @@ struct MenuBarLabel: View {
             // Icon only by default; price text appears only after the user enables "show quotes in menu bar" in settings
             if !appState.settings.showPriceInMenuBar || appState.watchlist.isEmpty {
                 Image(nsImage: templateIcon)
-                    .accessibilityLabel("Pulse")
+                    .accessibilityLabel("Tick")
             } else {
                 Text(appState.menuBarText)
                     .font(.system(size: 12).monospacedDigit())
@@ -169,18 +234,15 @@ struct MenuBarLabel: View {
         // the only reliable place to hand the AppKit delegate a scene-scoped action.
         .onAppear {
             AppDelegate.reopenHandler = {
-                openWindow(id: PinnedWindow.id)
-                PinnedWindow.activate()
+                openWindow(id: DesktopWindow.id)
+                DesktopWindow.activate()
             }
             guard !didApplyInitialWindowPresentation else { return }
             didApplyInitialWindowPresentation = true
-            guard appState.settings.pinnedWindowVisible || appState.onboarding.welcomeSessionActive else {
-                return
-            }
+            // The main window presents itself; only a floating window left pinned
+            // at the last quit needs bringing back.
+            guard appState.settings.pinnedWindowVisible else { return }
             openWindow(id: PinnedWindow.id)
-            if appState.onboarding.welcomeSessionActive {
-                PinnedWindow.activate()
-            }
         }
     }
 }

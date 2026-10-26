@@ -21,7 +21,7 @@ actor MCPHTTPListener {
     private static let requestReadTimeout: Duration = .seconds(30)
 
     private nonisolated let logger = Logger(
-        subsystem: Bundle.main.bundleIdentifier ?? "app.pulse.mac",
+        subsystem: Bundle.main.bundleIdentifier ?? "local.quote.mac",
         category: "MCPHTTP"
     )
     private var nextConnectionID: UInt64 = 0
@@ -29,7 +29,7 @@ actor MCPHTTPListener {
     private let port: UInt16
     private let token: String
     private let handler: Handler
-    private let queue = DispatchQueue(label: "app.pulse.mcp.listener")
+    private let queue = DispatchQueue(label: "local.quote.mcp.listener")
     private var listener: NWListener?
 
     init(port: UInt16, token: String, handler: @escaping Handler) {

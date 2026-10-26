@@ -7,10 +7,13 @@ import SwiftUI
 /// The menu bar panel is closed by the system the moment it stops being key, and
 /// `MenuBarExtra` exposes no way to opt out. "Pinning" therefore re-hosts the same
 /// view tree in a standalone floating window instead of trying to keep the panel up.
-/// Both hosts read and write the one shared `AppState`, so they stay in lockstep.
+/// Every host reads and writes the one shared `AppState`, so they stay in lockstep.
 enum PulseHost: Hashable {
     case menuBar
     case pinnedWindow
+    /// The resizable main window (and its Settings window): a sidebar list, a wide
+    /// detail, and a details column, instead of one 340pt page at a time.
+    case desktop
 }
 
 extension EnvironmentValues {

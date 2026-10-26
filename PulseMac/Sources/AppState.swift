@@ -9,7 +9,7 @@ import PulseUI
 @Observable
 final class AppState {
     private static let longbridgeLogger = Logger(
-        subsystem: Bundle.main.bundleIdentifier ?? "app.pulse.mac",
+        subsystem: Bundle.main.bundleIdentifier ?? "local.quote.mac",
         category: "LongbridgeAccess"
     )
     private static let longbridgeAccessSnapshotKey = "pulse.longbridge.quoteAccess.v1"
@@ -66,8 +66,8 @@ final class AppState {
         // real data is neither shown nor touched.
         let storeDefaults: UserDefaults
         if CommandLine.arguments.contains("--onboarding-demo"),
-           let demo = UserDefaults(suiteName: "app.pulse.mac.demo") {
-            demo.removePersistentDomain(forName: "app.pulse.mac.demo")
+           let demo = UserDefaults(suiteName: "local.quote.mac.demo") {
+            demo.removePersistentDomain(forName: "local.quote.mac.demo")
             storeDefaults = demo
         } else {
             storeDefaults = .standard
@@ -114,11 +114,11 @@ final class AppState {
             : nil
         // Distinct registration names keep the two clients tellable-apart in
         // Longbridge's authorization-management list; a user once revoked the active
-        // production grant because both entries were just called "Pulse". Existing
+        // production grant because both entries were just called "Tick". Existing
         // registrations keep their original name until they re-register.
         self.longbridgeOAuth = LongbridgeOAuthAuthenticator(
-            redirectScheme: Bundle.main.bundleIdentifier ?? "app.pulse.mac",
-            clientName: Bundle.main.bundleIdentifier == "app.pulse.mac.dev" ? "Pulse Dev" : "Pulse"
+            redirectScheme: Bundle.main.bundleIdentifier ?? "local.quote.mac",
+            clientName: Bundle.main.bundleIdentifier == "local.quote.mac.dev" ? "Tick Dev" : "Tick"
         )
         self.engine = RefreshEngine(provider: provider, store: market, watchlist: watchlist,
                                     pollOverrides: settings.providerPollIntervals)
@@ -356,7 +356,7 @@ final class AppState {
             guard let fingerprint = LongbridgeCredentialStore.loadOAuthTokens()?.clientFingerprint else {
                 longbridgeDowngradedMarkets = []
                 Self.longbridgeLogger.notice(
-                    "Quote access packages=\(packageKeys.joined(separator: ","), privacy: .public) auth=api-key"
+                    "Tick access packages=\(packageKeys.joined(separator: ","), privacy: .public) auth=api-key"
                 )
                 return
             }
@@ -384,17 +384,17 @@ final class AppState {
                 .map { "\($0.rawValue)=\(current[$0]?.rawValue ?? "unknown")" }
                 .joined(separator: ",")
             Self.longbridgeLogger.notice(
-                "Quote access client=\(fingerprint, privacy: .public) packages=\(packageKeys.joined(separator: ","), privacy: .public) access=\(accessSummary, privacy: .public)"
+                "Tick access client=\(fingerprint, privacy: .public) packages=\(packageKeys.joined(separator: ","), privacy: .public) access=\(accessSummary, privacy: .public)"
             )
             if !longbridgeDowngradedMarkets.isEmpty {
                 let markets = longbridgeDowngradedMarkets.map(\.rawValue).sorted().joined(separator: ",")
                 Self.longbridgeLogger.error(
-                    "Quote entitlement downgrade client=\(fingerprint, privacy: .public) markets=\(markets, privacy: .public)"
+                    "Tick entitlement downgrade client=\(fingerprint, privacy: .public) markets=\(markets, privacy: .public)"
                 )
             }
         } catch {
             Self.longbridgeLogger.error(
-                "Quote access inspection failed error=\(error.localizedDescription, privacy: .public)"
+                "Tick access inspection failed error=\(error.localizedDescription, privacy: .public)"
             )
         }
     }
@@ -458,7 +458,7 @@ final class AppState {
     }
 
     var menuBarText: String {
-        guard let item = menuBarItem else { return "Pulse" }
+        guard let item = menuBarItem else { return "Tick" }
         guard let quote = market.quote(for: item.symbol) else {
             return shortName(for: item)
         }
@@ -737,6 +737,24 @@ final class AppState {
         return PulseLocalization.localizedString("quote.delay.minutes", Int(delay / 60))
     }
 
+    /// "Xm 未更新" when the quote's market owes prints but its last one trails
+    /// the wall clock past everything its source and cadence explain. The hero
+    /// shows this in place of the realtime/delay label: a stalled quote is not
+    /// current however its source is described.
+    func quoteStallText(for quote: Quote) -> String? {
+        let age = QuoteStaleness.age(
+            for: quote,
+            sourceDelay: quoteDelay(for: quote),
+            pollCadence: quote.sourceID.map { pollInterval(for: $0) } ?? 0
+        )
+        guard let age else { return nil }
+        let minutes = Int(age / 60)
+        if minutes >= 60 {
+            return PulseLocalization.localizedString("quote.stale.hours", minutes / 60)
+        }
+        return PulseLocalization.localizedString("quote.stale.minutes", max(minutes, 1))
+    }
+
     /// How often a realtime price actually refreshes, for sources Pulse polls.
     /// Nil for pushing sources — there "realtime" already says it — and nil when
     /// the source is delayed, since that number is the one that matters then.
@@ -750,10 +768,7 @@ final class AppState {
     }
 
     private func formatMarketTime(_ date: Date, market: Market) -> String {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "HH:mm:ss"
-        formatter.timeZone = market.timeZone
-        return formatter.string(from: date)
+        MarketTimeFormatter.string(from: date, timeZone: market.timeZone)
     }
 
     // MARK: - Search
@@ -784,3 +799,26 @@ final class AppState {
 }
 
 extension AppState: AgentSymbolSearching {}
+
+/// `HH:mm:ss` market clocks for the detail meta row, cached per timezone:
+/// DateFormatter construction is among the heaviest Foundation inits, and
+/// this text re-renders on every quote tick.
+@MainActor
+private enum MarketTimeFormatter {
+    private static var cache: [String: DateFormatter] = [:]
+
+    static func string(from date: Date, timeZone: TimeZone) -> String {
+        let formatter: DateFormatter
+        if let cached = cache[timeZone.identifier] {
+            formatter = cached
+        } else {
+            let created = DateFormatter()
+            created.locale = Locale(identifier: "en_US_POSIX")
+            created.timeZone = timeZone
+            created.dateFormat = "HH:mm:ss"
+            cache[timeZone.identifier] = created
+            formatter = created
+        }
+        return formatter.string(from: date)
+    }
+}

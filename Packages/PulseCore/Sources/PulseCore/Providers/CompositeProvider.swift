@@ -2,7 +2,7 @@ import Foundation
 import OSLog
 
 private let quoteRoutingLogger = Logger(
-    subsystem: Bundle.main.bundleIdentifier ?? "app.pulse.mac",
+    subsystem: Bundle.main.bundleIdentifier ?? "local.quote.mac",
     category: "QuoteRouting"
 )
 
@@ -267,7 +267,6 @@ public actor CompositeProvider: QuoteProvider {
             providerByID[id] = primary
         }
 
-        var result: [Quote] = []
         var delayedFallbacks: [SymbolID: Quote] = [:]
         var lastError: (any Error)?
         for (id, group) in groups {
@@ -288,7 +287,6 @@ public actor CompositeProvider: QuoteProvider {
                     quoteCache[quote.symbol] = CacheEntry(value: quote)
                     quotesBySymbol[quote.symbol] = quote
                 }
-                result += quotes
             } catch is CancellationError {
                 throw CancellationError()
             } catch {
@@ -317,7 +315,6 @@ public actor CompositeProvider: QuoteProvider {
                             quoteCache[quote.symbol] = CacheEntry(value: quote)
                             quotesBySymbol[quote.symbol] = quote
                         }
-                        result += recovered
                         remaining.removeAll { quotesBySymbol[$0] != nil }
                     } catch is CancellationError {
                         throw CancellationError()
@@ -418,32 +415,62 @@ public actor CompositeProvider: QuoteProvider {
     }
 
     /// Asks each source that claims to describe this market, best first, and
-    /// takes the first answer — including "nothing to say", which is an answer.
-    /// Like names, a description failing must not make prices fall back, so
-    /// nothing here touches provider health.
+    /// takes the first description. Sources that answer "nothing to say" hand
+    /// the question to the next source, and only every source coming back
+    /// empty makes `nil` the answer — a source without a write-up must not
+    /// starve a source that has one. Like names, a description failing must
+    /// not make prices fall back, so nothing here touches provider health.
+    ///
+    /// Order puts the sources writing in the app's current language first —
+    /// an Eastmoney summary reads better to a Chinese reader than a Yahoo one
+    /// a market later — then the usual quote priority.
     public func profile(for symbol: SymbolID) async throws -> SecurityProfile? {
-        let available = orderedByQuotePriority(
-            providers.filter {
-                $0.descriptor.supports(.profile, in: symbol.market)
-                    && !disabledIDs.contains($0.descriptor.id)
-                    && isHealthy($0.descriptor.id)
-            },
-            market: symbol.market
-        )
+        let currentLanguage = PulseLocalization.currentLanguageIdentifier.prefix(2).lowercased()
+        let available = providers.filter {
+            $0.descriptor.supports(.profile, in: symbol.market)
+                && !disabledIDs.contains($0.descriptor.id)
+                && isHealthy($0.descriptor.id)
+        }
         guard !available.isEmpty else { throw ProviderError.unsupported(.profile) }
 
-        var lastError: (any Error) = ProviderError.unsupported(.profile)
-        for provider in available {
+        let quoteOrder = orderedByQuotePriority(available, market: symbol.market)
+        let quoteRank = Dictionary(
+            uniqueKeysWithValues: quoteOrder.enumerated().map { ($0.element.descriptor.id, $0.offset) }
+        )
+        let ordered = quoteOrder.sorted { lhs, rhs in
+            let lhsMatches = Self.profileLanguage(for: lhs.descriptor.id) == currentLanguage
+            let rhsMatches = Self.profileLanguage(for: rhs.descriptor.id) == currentLanguage
+            if lhsMatches != rhsMatches { return lhsMatches }
+            return (quoteRank[lhs.descriptor.id] ?? 0) < (quoteRank[rhs.descriptor.id] ?? 0)
+        }
+
+        for provider in ordered {
             do {
                 try await waitForProviderBudget(provider)
-                return try await provider.profile(for: symbol)
+                if let profile = try await provider.profile(for: symbol) {
+                    return profile
+                }
             } catch is CancellationError {
                 throw CancellationError()
             } catch {
-                lastError = error
+                // This source could not answer; the next one still can.
+                continue
             }
         }
-        throw lastError
+        // Every reachable source had nothing to say about this instrument.
+        return nil
+    }
+
+    /// Language affinity of a profile source. Only static assignments count:
+    /// a source whose language Pulse does not know must not claim a match by
+    /// falling into the current-language default.
+    private nonisolated static func profileLanguage(for providerID: String) -> String? {
+        switch providerID {
+        case "tencent", FuyaoProvider.providerID, EastmoneyProvider.providerID: "zh"
+        case "yahoo": "en"
+        case NaverProvider.providerID: "ko"
+        default: nil
+        }
     }
 
     public func securityNames(for symbols: [SymbolID]) async throws -> [SecurityName] {

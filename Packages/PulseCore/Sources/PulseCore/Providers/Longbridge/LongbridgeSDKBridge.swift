@@ -5,7 +5,7 @@ import LongbridgeCABI
 import OSLog
 
 private let longbridgeLogger = Logger(
-    subsystem: Bundle.main.bundleIdentifier ?? "app.pulse",
+    subsystem: Bundle.main.bundleIdentifier ?? "local.quote",
     category: "Longbridge"
 )
 

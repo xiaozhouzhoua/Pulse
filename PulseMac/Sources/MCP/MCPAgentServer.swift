@@ -145,7 +145,7 @@ final class MCPAgentServer {
 
         let transport = StatefulHTTPServerTransport()
         let server = Server(
-            name: "Pulse",
+            name: "Quote",
             version: Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "0",
             capabilities: .init(tools: .init(listChanged: false))
         )

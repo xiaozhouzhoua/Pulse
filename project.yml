@@ -1,6 +1,6 @@
-name: Pulse
+name: Tick
 options:
-  bundleIdPrefix: app.pulse
+  bundleIdPrefix: local.quote
   deploymentTarget:
     macOS: "14.0"
   createIntermediateGroups: true
@@ -20,13 +20,49 @@ packages:
     url: https://github.com/modelcontextprotocol/swift-sdk
     from: "0.11.0"
 
-targets:
-  PulseMac:
+# Everything the two distributions share: sources, resources, the Longbridge plugin,
+# and build settings. The targets below differ only in what the App Store forbids.
+targetTemplates:
+  TickMacApp:
     type: application
     platform: macOS
     sources:
       - PulseMac/Sources
       - PulseMac/Resources
+    postBuildScripts:
+      - name: Embed Longbridge SDK Plugin
+        shell: /bin/bash
+        basedOnDependencyAnalysis: false
+        script: |
+          "$SRCROOT/scripts/build-longbridge-plugin.sh"
+    settings:
+      base:
+        MARKETING_VERSION: "0.15.8"
+        CURRENT_PROJECT_VERSION: "1787242352"
+        SWIFT_VERSION: "6.0"
+        DEVELOPMENT_LANGUAGE: en
+        CODE_SIGN_IDENTITY: "-"
+        CODE_SIGN_STYLE: Manual
+        ENABLE_HARDENED_RUNTIME: false
+        TELEMETRYDECK_APP_ID: ""
+        SWIFT_STRICT_CONCURRENCY: complete
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+      configs:
+        Debug:
+          ENABLE_HARDENED_RUNTIME: false
+          ENABLE_USER_SCRIPT_SANDBOXING: false
+          # Ad-hoc signatures change on every build, which makes the Keychain treat each
+          # rebuild as a new app and re-prompt for the Longbridge credentials. A real
+          # development certificate keeps the designated requirement stable across builds.
+          CODE_SIGN_IDENTITY: "-"
+          DEVELOPMENT_TEAM: ""
+
+targets:
+  # Direct download (DMG/zip), updated through Sparkle once a feed is configured.
+  PulseMac:
+    templates:
+      - TickMacApp
+    scheme: {}
     dependencies:
       - package: PulseCore
       - package: PulseUI
@@ -43,10 +79,11 @@ targets:
         CFBundleDisplayName: $(BUNDLE_DISPLAY_NAME)
         CFBundleShortVersionString: $(MARKETING_VERSION)
         CFBundleVersion: $(CURRENT_PROJECT_VERSION)
-        LSUIElement: true
         LSMinimumSystemVersion: "14.0"
-        NSHumanReadableCopyright: "© 2026 Pulse"
-        SUEnableAutomaticChecks: true
+        LSApplicationCategoryType: public.app-category.finance
+        ITSAppUsesNonExemptEncryption: false
+        NSHumanReadableCopyright: "© 2026 Tick. Based on Pulse © 2026 fatwang2, MIT License."
+        SUEnableAutomaticChecks: false
         SUEnableInstallerLauncherService: true
         SUFeedURL: $(SPARKLE_FEED_URL)
         SUPublicEDKey: $(SPARKLE_PUBLIC_ED_KEY)
@@ -66,42 +103,76 @@ targets:
         # Loopback listener for the Longbridge OAuth redirect (primary callback path)
         # and the local MCP agent endpoint
         com.apple.security.network.server: true
+        # Sparkle's installer services
         com.apple.security.temporary-exception.mach-lookup.global-name:
           - $(PRODUCT_BUNDLE_IDENTIFIER)-spks
           - $(PRODUCT_BUNDLE_IDENTIFIER)-spki
-    postBuildScripts:
-      - name: Embed Longbridge SDK Plugin
-        shell: /bin/bash
-        basedOnDependencyAnalysis: false
-        script: |
-          "$SRCROOT/scripts/build-longbridge-plugin.sh"
     settings:
       base:
-        MARKETING_VERSION: "0.15.8"
-        CURRENT_PROJECT_VERSION: "1787242352"
-        SWIFT_VERSION: "6.0"
-        DEVELOPMENT_LANGUAGE: en
-        CODE_SIGN_IDENTITY: "-"
-        CODE_SIGN_STYLE: Manual
-        ENABLE_HARDENED_RUNTIME: false
         SPARKLE_FEED_URL: ""
         SPARKLE_PUBLIC_ED_KEY: ""
-        TELEMETRYDECK_APP_ID: ""
-        SWIFT_STRICT_CONCURRENCY: complete
-        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
       configs:
         Debug:
-          PRODUCT_NAME: Pulse Dev
-          BUNDLE_DISPLAY_NAME: Pulse Dev
-          PRODUCT_BUNDLE_IDENTIFIER: app.pulse.mac.dev
-          ENABLE_HARDENED_RUNTIME: false
-          ENABLE_USER_SCRIPT_SANDBOXING: false
-          # Ad-hoc signatures change on every build, which makes the Keychain treat each
-          # rebuild as a new app and re-prompt for the Longbridge credentials. A real
-          # development certificate keeps the designated requirement stable across builds.
-          CODE_SIGN_IDENTITY: "Apple Development"
-          DEVELOPMENT_TEAM: N99T75CSKK
+          PRODUCT_NAME: Tick Dev
+          BUNDLE_DISPLAY_NAME: Tick Dev
+          PRODUCT_BUNDLE_IDENTIFIER: local.quote.mac.dev
         Release:
-          PRODUCT_NAME: Pulse
-          BUNDLE_DISPLAY_NAME: Pulse
-          PRODUCT_BUNDLE_IDENTIFIER: app.pulse.mac
+          PRODUCT_NAME: Tick
+          BUNDLE_DISPLAY_NAME: Tick
+          PRODUCT_BUNDLE_IDENTIFIER: local.quote.mac
+
+  # Mac App Store. No Sparkle (the store delivers updates, guideline 2.4.5(vii)) and
+  # therefore none of its temporary-exception entitlements. Before archiving for
+  # submission, set PRODUCT_BUNDLE_IDENTIFIER to the App ID registered in App Store
+  # Connect and DEVELOPMENT_TEAM to your team, and switch CODE_SIGN_STYLE to
+  # Automatic (or pass all three to `xcodebuild archive`).
+  TickAppStore:
+    templates:
+      - TickMacApp
+    scheme: {}
+    dependencies:
+      - package: PulseCore
+      - package: PulseUI
+      - package: TelemetryDeck
+        product: TelemetryDeck
+      - package: MCP
+        product: MCP
+    info:
+      path: PulseMac/AppStore/Info.plist
+      properties:
+        CFBundleName: $(PRODUCT_NAME)
+        CFBundleDisplayName: $(BUNDLE_DISPLAY_NAME)
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        LSMinimumSystemVersion: "14.0"
+        LSApplicationCategoryType: public.app-category.finance
+        ITSAppUsesNonExemptEncryption: false
+        NSHumanReadableCopyright: "© 2026 Tick. Based on Pulse © 2026 fatwang2, MIT License."
+        TelemetryDeckAppID: $(TELEMETRYDECK_APP_ID)
+        CFBundleURLTypes:
+          - CFBundleURLName: $(PRODUCT_BUNDLE_IDENTIFIER).oauth
+            CFBundleURLSchemes:
+              - $(PRODUCT_BUNDLE_IDENTIFIER)
+    entitlements:
+      path: PulseMac/AppStore/Tick.entitlements
+      properties:
+        com.apple.security.app-sandbox: true
+        com.apple.security.network.client: true
+        # Loopback only: the Longbridge OAuth redirect and the opt-in local MCP endpoint
+        com.apple.security.network.server: true
+    settings:
+      base:
+        SWIFT_ACTIVE_COMPILATION_CONDITIONS: "$(inherited) APP_STORE"
+      configs:
+        Debug:
+          # Named apart from the direct build's "Tick Dev" so the two Debug
+          # products can sit in one DerivedData folder.
+          PRODUCT_NAME: Tick Store Dev
+          BUNDLE_DISPLAY_NAME: Tick Dev
+          PRODUCT_BUNDLE_IDENTIFIER: local.quote.mac.dev
+        Release:
+          PRODUCT_NAME: Tick
+          BUNDLE_DISPLAY_NAME: Tick
+          PRODUCT_BUNDLE_IDENTIFIER: local.quote.mac
+          # App Store Connect rejects binaries that still carry get-task-allow.
+          CODE_SIGN_INJECT_BASE_ENTITLEMENTS: NO

@@ -57,7 +57,7 @@ struct DetailShareSnapshot {
         changeText = quote.map { PriceFormatter.change($0.change, market: symbol.market) } ?? "—"
         changePercentText = quote.map { PriceFormatter.percent($0.changePercent) } ?? "—"
         changeValue = quote?.change
-        previousClose = quote?.previousClose
+        previousClose = quote?.intradayReferenceClose(includesExtendedHours: includesExtendedHours)
         self.period = period
         periodName = period.displayName
         self.includesExtendedHours = includesExtendedHours
@@ -80,12 +80,17 @@ struct DetailShareSnapshot {
             Stat(
                 id: "previousClose",
                 label: PulseLocalization.localizedString("stat.previousClose"),
-                value: quote.map { PriceFormatter.price($0.previousClose, market: symbol.market) } ?? "—"
+                value: quote.map { PriceFormatter.price($0.sessionReferenceClose, market: symbol.market) } ?? "—"
             ),
             Stat(
                 id: "volume",
                 label: PulseLocalization.localizedString("stat.volume"),
                 value: quote?.volume.map(PriceFormatter.compact) ?? "—"
+            ),
+            Stat(
+                id: "turnover",
+                label: PulseLocalization.localizedString("stat.turnover"),
+                value: quote?.turnover.map(PriceFormatter.compact) ?? "—"
             ),
         ]
         dayLowText = quote?.low.map { PriceFormatter.price($0, market: symbol.market) }

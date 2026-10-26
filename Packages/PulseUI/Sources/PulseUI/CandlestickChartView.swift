@@ -12,7 +12,7 @@ import AppKit
 /// The chart shows a zoomable window into the loaded history (TradingView-style):
 /// scroll wheel / trackpad vertical scroll zooms around the cursor, trackpad horizontal
 /// scroll / shift+wheel / drag pans through history, double-click resets to the latest
-/// `defaultVisibleCount` bars. Hover state lives in `CandleChartViewport` and is read only
+/// preferred number of bars. Hover state lives in `CandleChartViewport` and is read only
 /// by the crosshair overlays, so mouse movement never re-renders the candle marks.
 public struct CandlestickChartView: View {
     let candles: [Candle]
@@ -401,6 +401,9 @@ public final class CandleChartViewport {
 
     public init() {}
 
+    /// The window a reset returns to. Wide hosts raise it so their bars keep a
+    /// readable width instead of stretching 60 candles across the whole plot.
+    @ObservationIgnored private var preferredVisibleCount = CandleChartViewport.defaultVisibleCount
     var visibleCount = CandleChartViewport.defaultVisibleCount
     /// Bars hidden to the right of the window; 0 = pinned to the latest bar.
     var rightOffset = 0
@@ -421,10 +424,20 @@ public final class CandleChartViewport {
         return (end - count + 1)..<(end + 1)
     }
 
-    func reset() {
-        visibleCount = Self.defaultVisibleCount
+    public func reset() {
+        visibleCount = preferredVisibleCount
         rightOffset = 0
         panRemainder = 0
+    }
+
+    /// A chart the user has not zoomed or panned adopts the new count at once;
+    /// one they have keeps its window until the next reset.
+    public func setPreferredVisibleCount(_ count: Int) {
+        let count = max(count, Self.minVisibleCount)
+        guard count != preferredVisibleCount else { return }
+        let isAtRest = visibleCount == preferredVisibleCount && rightOffset == 0
+        preferredVisibleCount = count
+        if isAtRest { visibleCount = count }
     }
 
     /// factor > 1 zooms in (fewer bars). The bar under the cursor keeps its screen

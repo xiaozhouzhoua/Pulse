@@ -158,36 +158,9 @@ struct PopoverRootView: View {
                     .frame(height: height(for: displayRoute))
                     .transition(pushTransition)
             case .calibrate(let symbol, let returnRoute):
-                VStack(spacing: 0) {
-                    // The panel's compact editor has Cancel at the bottom. In a window,
-                    // every pushed page also needs the same visible navigation row as
-                    // the rest of the position flow.
-                    if host == .pinnedWindow {
-                        PositionPageHeader(
-                            symbol: symbol,
-                            title: nil,
-                            onBack: { route = .position(symbol, returnRoute) }
-                        )
-                    }
-                    if let item = appState.watchlist.item(for: symbol) {
-                        PositionEditorView(
-                            item: item,
-                            quote: appState.market.quote(for: symbol),
-                            palette: appState.palette,
-                            onCancel: { route = .position(symbol, returnRoute) },
-                            onSave: { quantity, cost in
-                                appState.watchlist.calibratePosition(symbol, quantity: quantity, averageCost: cost)
-                                route = .position(symbol, returnRoute)
-                            },
-                            onClear: {
-                                appState.watchlist.clearPosition(symbol)
-                                route = .position(symbol, returnRoute)
-                            }
-                        )
-                    }
-                }
-                .frame(height: height(for: displayRoute))
-                .transition(pushTransition)
+                PositionCalibrationPage(symbol: symbol, returnRoute: returnRoute, route: $route)
+                    .frame(height: height(for: displayRoute))
+                    .transition(pushTransition)
             case .profile(let symbol):
                 ProfileView(symbol: symbol, route: $route)
                     .frame(height: height(for: displayRoute))
@@ -213,17 +186,9 @@ struct PopoverRootView: View {
                     .frame(height: height(for: displayRoute))
                     .transition(pushTransition)
             case .providerDetail(let id):
-                Group {
-                    if id == LongbridgeProvider.providerID {
-                        LongbridgeSetupView(route: $route)
-                    } else if id == FuyaoProvider.providerID {
-                        FuyaoSetupView(route: $route)
-                    } else if let descriptor = appState.providerDescriptors.first(where: { $0.id == id }) {
-                        ProviderDetailView(descriptor: descriptor, route: $route)
-                    }
-                }
-                .frame(height: height(for: displayRoute))
-                .transition(pushTransition)
+                ProviderDetailPage(id: id, route: $route)
+                    .frame(height: height(for: displayRoute))
+                    .transition(pushTransition)
             }
         }
         .frame(width: 340, height: presentedHeight, alignment: .top)
@@ -373,11 +338,68 @@ struct PopoverRootView: View {
     }
 }
 
+/// Quick-set editor for one position. The panel's compact editor has Cancel at the
+/// bottom; in a window every pushed page also needs the same visible navigation row
+/// as the rest of the position flow.
+struct PositionCalibrationPage: View {
+    @Environment(AppState.self) private var appState
+    @Environment(\.pulseHost) private var host
+    let symbol: SymbolID
+    let returnRoute: PositionReturnRoute
+    @Binding var route: PopoverRoute
+
+    var body: some View {
+        VStack(spacing: 0) {
+            if host != .menuBar {
+                PositionPageHeader(
+                    symbol: symbol,
+                    title: nil,
+                    onBack: { route = .position(symbol, returnRoute) }
+                )
+            }
+            if let item = appState.watchlist.item(for: symbol) {
+                PositionEditorView(
+                    item: item,
+                    quote: appState.market.quote(for: symbol),
+                    palette: appState.palette,
+                    onCancel: { route = .position(symbol, returnRoute) },
+                    onSave: { quantity, cost in
+                        appState.watchlist.calibratePosition(symbol, quantity: quantity, averageCost: cost)
+                        route = .position(symbol, returnRoute)
+                    },
+                    onClear: {
+                        appState.watchlist.clearPosition(symbol)
+                        route = .position(symbol, returnRoute)
+                    }
+                )
+            }
+        }
+    }
+}
+
+/// One data source's own page: the connect flows for account sources, the shared
+/// detail page for built-ins.
+struct ProviderDetailPage: View {
+    @Environment(AppState.self) private var appState
+    let id: String
+    @Binding var route: PopoverRoute
+
+    var body: some View {
+        if id == LongbridgeProvider.providerID {
+            LongbridgeSetupView(route: $route)
+        } else if id == FuyaoProvider.providerID {
+            FuyaoSetupView(route: $route)
+        } else if let descriptor = appState.providerDescriptors.first(where: { $0.id == id }) {
+            ProviderDetailView(descriptor: descriptor, route: $route)
+        }
+    }
+}
+
 /// `MenuBarExtra` closes its window before SwiftUI's exit-command handlers
 /// receive Escape. Monitor the host window directly so child routes can consume
 /// Escape as back, while events in nested popovers and the root list retain
 /// their normal system behavior.
-private struct EscapeBackMonitor: NSViewRepresentable {
+struct EscapeBackMonitor: NSViewRepresentable {
     let onEscape: () -> Bool
 
     func makeNSView(context: Context) -> EscapeBackMonitorView {
@@ -396,7 +418,7 @@ private struct EscapeBackMonitor: NSViewRepresentable {
 }
 
 @MainActor
-private final class EscapeBackMonitorView: NSView {
+final class EscapeBackMonitorView: NSView {
     var onEscape: () -> Bool = { false }
     private var monitor: Any?
     private var isConsumingEscape = false

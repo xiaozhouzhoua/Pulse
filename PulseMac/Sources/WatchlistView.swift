@@ -4,7 +4,7 @@ import PulseCore
 import PulseUI
 
 private let watchlistReorderLogger = Logger(
-    subsystem: Bundle.main.bundleIdentifier ?? "app.pulse.mac",
+    subsystem: Bundle.main.bundleIdentifier ?? "local.quote.mac",
     category: "WatchlistReorder"
 )
 
@@ -14,11 +14,9 @@ struct SearchSession {
     var text = ""
     var isActive = false
     var cache: [String: [SymbolInfo]] = [:]
-}
-
-private enum PulseExternalLinks {
-    static let website = URL(string: "https://www.pulseticker.app/?utm_source=pulse_macos&utm_medium=app&utm_campaign=menu_links&utm_content=official_website")!
-    static let github = URL(string: "https://github.com/fatwang2/Pulse?utm_source=pulse_macos&utm_medium=app&utm_campaign=menu_links&utm_content=github_repository")!
+    /// Bumped by a host that wants the field focused from outside the list (the
+    /// desktop window's empty detail offers search there too).
+    var focusRequest = 0
 }
 
 struct WatchlistView: View {
@@ -29,9 +27,13 @@ struct WatchlistView: View {
     @Environment(\.pulseHost) private var host
     @Environment(\.openWindow) private var openWindow
     @Environment(\.dismissWindow) private var dismissWindow
+    @Environment(\.openSettings) private var openSettings
     @Binding var route: PopoverRoute
 
     @Binding var searchSession: SearchSession
+    /// The symbol the desktop window's detail is showing, highlighted in the list.
+    /// The single-page hosts navigate away from the list instead and leave it nil.
+    var selectedSymbol: SymbolID? = nil
     @FocusState private var searchFieldFocused: Bool
     @State private var searchResults: [SymbolInfo] = []
     @State private var completedSearchQuery: String?
@@ -117,7 +119,7 @@ struct WatchlistView: View {
                     sortOption: listSortOption,
                     prioritizesOpenMarkets: appState.settings.prioritizeOpenMarkets,
                     reduceMotion: reduceMotion,
-                    host: host == .pinnedWindow ? "pinnedWindow" : "menuBar",
+                    host: SupportDiagnostics.hostName(host),
                     window: hostWindow
                 )
             } else {
@@ -161,6 +163,7 @@ struct WatchlistView: View {
         // pin next); by then the route is already back on the list, so that
         // route change alone would have checked too early.
         .onChange(of: appState.onboarding.tourResumeStep) { _, _ in maybeStartTour() }
+        .onChange(of: searchSession.focusRequest) { _, _ in activateSearch() }
     }
 
     @ViewBuilder
@@ -236,25 +239,54 @@ struct WatchlistView: View {
             Text(PulseLocalization.localizedString("watchlist.menu.sort"))
         }
         Divider()
-        Button {
-            NSWorkspace.shared.open(PulseExternalLinks.website)
-        } label: {
-            Text(PulseLocalization.localizedString("action.openWebsite"))
+        if let website = AppLinks.website {
+            Button {
+                NSWorkspace.shared.open(website)
+            } label: {
+                Text(PulseLocalization.localizedString("action.openWebsite"))
+            }
         }
-        Button {
-            NSWorkspace.shared.open(PulseExternalLinks.github)
-        } label: {
-            Text(PulseLocalization.localizedString("action.openGitHub"))
+        if let sourceCode = AppLinks.sourceCode {
+            Button {
+                NSWorkspace.shared.open(sourceCode)
+            } label: {
+                Text(PulseLocalization.localizedString("action.openGitHub"))
+            }
         }
-        Menu {
-            feedbackMenuContent
-        } label: {
-            Text(PulseLocalization.localizedString("feedback.menu"))
+        if let supportEmail = AppLinks.supportEmail {
+            Menu {
+                Button {
+                    emailFeedback()
+                } label: {
+                    // The address is spelled out in the item itself, so someone
+                    // without a mail client still learns where to write.
+                    Text(PulseLocalization.localizedString("feedback.email", supportEmail))
+                }
+                copyDiagnosticsButton
+            } label: {
+                Text(PulseLocalization.localizedString("feedback.menu"))
+            }
+        } else {
+            copyDiagnosticsButton
         }
         Divider()
-        updateMenuItem
+        if softwareUpdate.isConfigured {
+            updateMenuItem
+        }
+        if host != .desktop {
+            Button {
+                openWindow(id: DesktopWindow.id)
+                DesktopWindow.activate()
+            } label: {
+                Text(PulseLocalization.localizedString("action.openMainWindow"))
+            }
+        }
         Button {
-            route = .settings
+            if host == .desktop {
+                openSettings()
+            } else {
+                route = .settings
+            }
         } label: {
             Text(PulseLocalization.localizedString("settings.title"))
         }
@@ -266,15 +298,7 @@ struct WatchlistView: View {
         }
     }
 
-    /// Mail, with the address spelled out in the item itself so someone without a
-    /// mail client still learns where to write, and the diagnostics report that
-    /// goes with the mail.
-    @ViewBuilder private var feedbackMenuContent: some View {
-        Button {
-            emailFeedback()
-        } label: {
-            Text(PulseLocalization.localizedString("feedback.email", SupportLinks.supportEmail))
-        }
+    private var copyDiagnosticsButton: some View {
         Button {
             let copied = SupportDiagnostics.copyReport(appState: appState, host: host)
             showShareFeedback(content: .diagnostics, isSuccess: copied)
@@ -320,19 +344,23 @@ struct WatchlistView: View {
         .popover(isPresented: tourBinding(.pin), arrowEdge: .bottom) {
             tourBubble(.pin)
         }
-        ClusterIcon(
-            systemName: "magnifyingglass",
-            help: PulseLocalization.localizedString("action.search"),
-            isActive: searchSession.isActive
-        ) {
-            toggleSearch()
-        }
-        .disabled(isReordering)
-        .opacity(isReordering ? 0.45 : 1)
-        // The tour teaches the magnifier, not the empty state's one-time button:
-        // this is where search still lives after the first symbol.
-        .popover(isPresented: tourBinding(.search), arrowEdge: .bottom) {
-            tourBubble(.search)
+        // The desktop sidebar keeps its search field standing; a toggle beside it
+        // would only repeat it.
+        if host != .desktop {
+            ClusterIcon(
+                systemName: "magnifyingglass",
+                help: PulseLocalization.localizedString("action.search"),
+                isActive: searchSession.isActive
+            ) {
+                toggleSearch()
+            }
+            .disabled(isReordering)
+            .opacity(isReordering ? 0.45 : 1)
+            // The tour teaches the magnifier, not the empty state's one-time button:
+            // this is where search still lives after the first symbol.
+            .popover(isPresented: tourBinding(.search), arrowEdge: .bottom) {
+                tourBubble(.search)
+            }
         }
         ClusterMenu(
             systemName: "square.and.arrow.up",
@@ -411,7 +439,7 @@ struct WatchlistView: View {
     @ViewBuilder private var shareFeedbackOverlay: some View {
         if let shareFeedback {
             ShareFeedbackHUD(feedback: shareFeedback)
-                .padding(.trailing, host == .pinnedWindow ? 0 : 62)
+                .padding(.trailing, host == .menuBar ? 62 : 0)
                 .transition(.opacity.combined(with: .scale(scale: 0.96, anchor: .trailing)))
                 .allowsHitTesting(false)
         }
@@ -419,16 +447,15 @@ struct WatchlistView: View {
 
     private var chrome: some View {
         VStack(spacing: 7) {
-            // The pinned window has a title bar of its own; its actions move up into it
-            // rather than repeating a brand row underneath.
-            if host == .menuBar {
+            switch host {
+            case .menuBar:
                 HStack(spacing: 8) {
                     PulseWaveformMark(primaryColor: .accentColor)
                         .frame(width: 15, height: 11.5)
                         .frame(width: 17, height: 13, alignment: .trailing)
                         .accessibilityHidden(true)
-                    // Bundle display name: "Pulse Dev" in Debug builds, "Pulse" in Release
-                    Text(Bundle.main.object(forInfoDictionaryKey: "CFBundleDisplayName") as? String ?? "Pulse")
+                    // Bundle display name: "Tick Dev" in Debug builds, "Tick" in Release
+                    Text(Bundle.main.object(forInfoDictionaryKey: "CFBundleDisplayName") as? String ?? "Tick")
                         .font(.system(size: 12.5, weight: .semibold))
                     Spacer()
                     actionButtons
@@ -436,16 +463,31 @@ struct WatchlistView: View {
                 .overlay(alignment: .trailing) {
                     shareFeedbackOverlay
                 }
-            }
-            WatchlistGroupBar(isDisabled: isReordering, onSelect: selectGroup)
-            if searchSession.isActive {
+                WatchlistGroupBar(isDisabled: isReordering, onSelect: selectGroup)
+                if searchSession.isActive {
+                    searchField
+                }
+            case .pinnedWindow:
+                // The pinned window has a title bar of its own; its actions move up
+                // into it rather than repeating a brand row underneath.
+                WatchlistGroupBar(isDisabled: isReordering, onSelect: selectGroup)
+                if searchSession.isActive {
+                    searchField
+                }
+            case .desktop:
+                // A sidebar is where a desktop app keeps its search, so the field
+                // stands at the top; the lists and their actions share the row below.
                 searchField
+                HStack(spacing: 6) {
+                    WatchlistGroupBar(isDisabled: isReordering, onSelect: selectGroup)
+                    actionButtons
+                }
             }
         }
         .overlay(alignment: .topTrailing) {
-            // The panel hangs this off its header row. With the pinned window's actions
-            // up in the title bar, the copy confirmation lands just under them instead.
-            if host == .pinnedWindow {
+            // The panel hangs this off its header row. With the window hosts' actions
+            // elsewhere, the copy confirmation lands at the top corner instead.
+            if host != .menuBar {
                 shareFeedbackOverlay
             }
         }
@@ -453,7 +495,7 @@ struct WatchlistView: View {
         // The system title bar already supplies separation below its controls.
         // Keep the pinned surface compact instead of stacking the panel's full
         // top inset on top of that built-in spacing.
-        .padding(.top, host == .pinnedWindow ? 5 : 10)
+        .padding(.top, host == .pinnedWindow ? 5 : (host == .desktop ? 4 : 10))
         .padding(.bottom, 7)
         .animation(.snappy(duration: 0.18), value: searchSession.isActive)
         .background {
@@ -504,20 +546,31 @@ struct WatchlistView: View {
             dismissWindow(id: PinnedWindow.id)
             return
         }
-        if let panel = hostWindow {
+        // Only the panel hands over: the desktop window stays where it is, and the
+        // floating window opens at its own remembered spot rather than at the
+        // big window's corner.
+        let handsOverPanel = host == .menuBar
+        if handsOverPanel, let panel = hostWindow {
             PinnedWindow.pendingTopLeft = CGPoint(x: panel.frame.minX, y: panel.frame.maxY)
         }
         openWindow(id: PinnedWindow.id)
         PinnedWindow.activate()
-        hostWindow?.close()
+        if handsOverPanel {
+            hostWindow?.close()
+        }
     }
 
     // MARK: - Onboarding tour
 
-    /// Both hosts render the same shared tour, but only one carries it at a
-    /// time: the pinned window when it is up, else the menu bar panel.
+    /// The menu bar hosts render the same shared tour, but only one carries it at
+    /// a time: the pinned window when it is up, else the panel. The desktop window
+    /// never does; its standing search field and sidebar teach the same steps.
     private var isTourHost: Bool {
-        host == .pinnedWindow || !appState.settings.pinnedWindowVisible
+        switch host {
+        case .pinnedWindow: true
+        case .menuBar: !appState.settings.pinnedWindowVisible
+        case .desktop: false
+        }
     }
 
     private func tourBinding(_ step: OnboardingState.TourStep) -> Binding<Bool> {
@@ -695,9 +748,11 @@ struct WatchlistView: View {
         metricColumnHighWater = measurement
     }
 
-    private var watchRowMetricColumnWidth: CGFloat {
+    /// Takes the already-ordered items so a render measures the list once
+    /// instead of re-sorting it per column.
+    private func watchRowMetricColumnWidth(for items: [WatchItem]) -> CGFloat {
         let mode = appState.settings.watchRowMetricMode
-        let widths = displayedItems().map { item -> CGFloat in
+        let widths = items.map { item -> CGFloat in
             let quote = appState.market.quote(for: item.symbol)
             let metrics = quote.flatMap { PositionMetrics(item: item, quote: $0) }
             let display = WatchRow.rowMetricDisplay(
@@ -721,8 +776,8 @@ struct WatchlistView: View {
         return widths.max() ?? 52
     }
 
-    private var watchRowTitleColumnWidth: CGFloat {
-        let widths = displayedItems().map { item in
+    private func watchRowTitleColumnWidth(for items: [WatchItem]) -> CGFloat {
+        let widths = items.map { item in
             WatchRowColumnLayout.titleWidth(
                 name: item.resolvedDisplayName,
                 symbolCode: item.symbol.displayCode,
@@ -894,6 +949,16 @@ struct WatchlistView: View {
                     }
                 }
                 .onAppear { focusSearchField() }
+                // The desktop field is always on screen, so entering search is
+                // clicking into it; leaving it empty and unfocused is leaving.
+                .onChange(of: searchFieldFocused) { _, focused in
+                    guard host == .desktop else { return }
+                    if focused, !searchSession.isActive {
+                        searchSession.isActive = true
+                    } else if !focused, searchSession.text.isEmpty, searchSession.isActive {
+                        exitSearch()
+                    }
+                }
             if isSearching {
                 ProgressView().controlSize(.mini)
             } else if !searchSession.text.isEmpty {
@@ -905,10 +970,15 @@ struct WatchlistView: View {
                         .foregroundStyle(.secondary)
                 }
                 .buttonStyle(.pressable)
+            } else if host == .desktop, !searchFieldFocused {
+                Text("⌘F")
+                    .font(.system(size: 10, weight: .medium).monospaced())
+                    .foregroundStyle(.tertiary)
+                    .accessibilityHidden(true)
             }
         }
         .padding(.horizontal, 9)
-        .frame(height: 26)
+        .frame(height: host == .desktop ? 28 : 26)
         .background(.quaternary.opacity(0.45), in: RoundedRectangle(cornerRadius: 6, style: .continuous))
         .overlay {
             RoundedRectangle(cornerRadius: 6, style: .continuous)
@@ -973,6 +1043,7 @@ struct WatchlistView: View {
                 ForEach(searchResults) { info in
                     SearchResultRow(
                         info: info,
+                        isSelected: info.symbol == selectedSymbol,
                         onOpen: { openSearchResult(info) },
                         onAdd: { addSearchResult(info) },
                         onRemove: { removeSearchResult(info) }
@@ -1214,114 +1285,125 @@ struct WatchlistView: View {
     /// own hover treatment, and reordering is a SwiftUI gesture.
     private func watchList(at date: Date) -> some View {
         let items = displayedItems(at: date)
-        let titleColumnWidth = watchRowTitleColumnWidth
+        let titleColumnWidth = watchRowTitleColumnWidth(for: items)
         let measurement = MetricColumnMeasurement(
             mode: appState.settings.watchRowMetricMode,
             symbols: Set(items.map(\.symbol)),
-            width: watchRowMetricColumnWidth
+            width: watchRowMetricColumnWidth(for: items)
         )
         let metricColumnWidth = stableMetricColumnWidth(for: measurement)
-        return ScrollView {
-            LazyVStack(spacing: 0) {
-                ForEach(Array(items.enumerated()), id: \.element.id) { index, item in
-                    let isDragging = reorderDrag?.originIndex == index
-                    WatchRow(
-                        item: item,
-                        titleColumnWidth: titleColumnWidth,
-                        metricColumnWidth: metricColumnWidth,
-                        isPinned: appState.watchlist.isPinned(item.symbol),
-                        isReordering: isReordering
-                    ) {
-                        route = .detail(item.symbol)
-                    }
-                    // The detail stop anchors on the first row: one bubble, not one per row.
-                    .popover(
-                        isPresented: item.symbol == items.first?.symbol
-                            ? tourBinding(.detail)
-                            : .constant(false),
-                        arrowEdge: .bottom
-                    ) {
-                        tourBubble(.detail)
-                    }
-                    .contextMenu {
-                        if !isReordering {
-                            Toggle(
-                                PulseLocalization.localizedString("watchlist.sort.pinToTop"),
-                                isOn: pinnedBinding(item.symbol)
-                            )
-                            Divider()
-                            Button(PulseLocalization.localizedString("action.pinToMenuBar")) {
-                                appState.settings.primarySymbol = item.symbol
-                                appState.settings.menuBarMode = .single
-                                appState.settings.showPriceInMenuBar = true
-                            }
-                            if item.supportsPosition {
-                                Button(PulseLocalization.localizedString("action.editPosition")) {
-                                    route = .position(item.symbol, .list)
-                                }
-                            }
-                            Menu(PulseLocalization.localizedString("watchlist.group.membership")) {
-                                ForEach(appState.watchlist.groups) { group in
-                                    // Toggle renders as a native checkmark menu
-                                    // item; a Label's icon does not survive menu
-                                    // rendering on macOS.
-                                    Toggle(group.name, isOn: membershipBinding(item.symbol, group.id))
-                                }
-                            }
-                            Divider()
-                            Button(PulseLocalization.localizedString("watchlist.sort.adjust")) {
-                                beginAdjustingOrder()
-                            }
-                            if let currentGroup = appState.watchlist.selectedGroup {
+        return ScrollViewReader { proxy in
+            ScrollView {
+                LazyVStack(spacing: 0) {
+                    ForEach(Array(items.enumerated()), id: \.element.id) { index, item in
+                        let isDragging = reorderDrag?.originIndex == index
+                        WatchRow(
+                            item: item,
+                            titleColumnWidth: titleColumnWidth,
+                            metricColumnWidth: metricColumnWidth,
+                            isPinned: appState.watchlist.isPinned(item.symbol),
+                            isReordering: isReordering,
+                            isSelected: item.symbol == selectedSymbol
+                        ) {
+                            route = .detail(item.symbol)
+                        }
+                        // The detail stop anchors on the first row: one bubble, not one per row.
+                        .popover(
+                            isPresented: item.symbol == items.first?.symbol
+                                ? tourBinding(.detail)
+                                : .constant(false),
+                            arrowEdge: .bottom
+                        ) {
+                            tourBubble(.detail)
+                        }
+                        .contextMenu {
+                            if !isReordering {
+                                Toggle(
+                                    PulseLocalization.localizedString("watchlist.sort.pinToTop"),
+                                    isOn: pinnedBinding(item.symbol)
+                                )
                                 Divider()
-                                Button(
-                                    PulseLocalization.localizedString(
-                                        "watchlist.group.removeCurrent",
-                                        currentGroup.name
-                                    ),
-                                    role: .destructive
-                                ) {
-                                    withAnimation(.snappy(duration: 0.22)) {
-                                        appState.watchlist.setMembership(
-                                            item.symbol,
-                                            in: currentGroup.id,
-                                            included: false
-                                        )
+                                Button(PulseLocalization.localizedString("action.pinToMenuBar")) {
+                                    appState.settings.primarySymbol = item.symbol
+                                    appState.settings.menuBarMode = .single
+                                    appState.settings.showPriceInMenuBar = true
+                                }
+                                if item.supportsPosition {
+                                    Button(PulseLocalization.localizedString("action.editPosition")) {
+                                        route = .position(item.symbol, .list)
+                                    }
+                                }
+                                Menu(PulseLocalization.localizedString("watchlist.group.membership")) {
+                                    ForEach(appState.watchlist.groups) { group in
+                                        // Toggle renders as a native checkmark menu
+                                        // item; a Label's icon does not survive menu
+                                        // rendering on macOS.
+                                        Toggle(group.name, isOn: membershipBinding(item.symbol, group.id))
+                                    }
+                                }
+                                Divider()
+                                Button(PulseLocalization.localizedString("watchlist.sort.adjust")) {
+                                    beginAdjustingOrder()
+                                }
+                                if let currentGroup = appState.watchlist.selectedGroup {
+                                    Divider()
+                                    Button(
+                                        PulseLocalization.localizedString(
+                                            "watchlist.group.removeCurrent",
+                                            currentGroup.name
+                                        ),
+                                        role: .destructive
+                                    ) {
+                                        withAnimation(.snappy(duration: 0.22)) {
+                                            appState.watchlist.setMembership(
+                                                item.symbol,
+                                                in: currentGroup.id,
+                                                included: false
+                                            )
+                                        }
                                     }
                                 }
                             }
                         }
+                        .offset(y: reorderOffset(for: index))
+                        .zIndex(isDragging ? 1 : 0)
+                        .shadow(color: .black.opacity(isDragging ? 0.18 : 0), radius: 6, y: 2)
+                        .onGeometryChange(for: CGFloat.self) { proxy in
+                            proxy.size.height
+                        } action: { height in
+                            if index == 0, height > 0 { reorderRowHeight = height }
+                        }
+                        .gesture(
+                            reorderGesture(index: index, item: item, itemCount: items.count),
+                            isEnabled: isReordering
+                        )
                     }
-                    .offset(y: reorderOffset(for: index))
-                    .zIndex(isDragging ? 1 : 0)
-                    .shadow(color: .black.opacity(isDragging ? 0.18 : 0), radius: 6, y: 2)
-                    .onGeometryChange(for: CGFloat.self) { proxy in
-                        proxy.size.height
-                    } action: { height in
-                        if index == 0, height > 0 { reorderRowHeight = height }
-                    }
-                    .gesture(
-                        reorderGesture(index: index, item: item, itemCount: items.count),
-                        isEnabled: isReordering
-                    )
+                }
+                // Inset 4 + the row's internal 8pt padding puts row content on the same 12pt grid as the chrome
+                .padding(.horizontal, 4)
+            }
+            .background {
+                ReorderPointerMonitor(enabled: isReordering)
+            }
+            // A persistent AppKit scroller becomes a heavy dark rail in this compact
+            // glass popover. The system soft edge effect communicates overflow instead.
+            .scrollIndicators(.never, axes: .vertical)
+            .softScrollEdgeEffect(for: .vertical)
+            .animation(.snappy(duration: 0.16), value: items.map(\.symbol))
+            .onChange(of: isReordering) { _, active in
+                if !active { reorderDrag = nil }
+            }
+            .onChange(of: measurement, initial: true) { _, measurement in
+                recordMetricColumn(measurement)
+            }
+            // Arrow keys move the desktop selection; the row they land on scrolls
+            // just far enough to be seen.
+            .onChange(of: selectedSymbol) { _, symbol in
+                guard host == .desktop, let symbol else { return }
+                withAnimation(reduceMotion ? nil : .snappy(duration: 0.2)) {
+                    proxy.scrollTo(symbol)
                 }
             }
-            // Inset 4 + the row's internal 8pt padding puts row content on the same 12pt grid as the chrome
-            .padding(.horizontal, 4)
-        }
-        .background {
-            ReorderPointerMonitor(enabled: isReordering)
-        }
-        // A persistent AppKit scroller becomes a heavy dark rail in this compact
-        // glass popover. The system soft edge effect communicates overflow instead.
-        .scrollIndicators(.never, axes: .vertical)
-        .softScrollEdgeEffect(for: .vertical)
-        .animation(.snappy(duration: 0.16), value: items.map(\.symbol))
-        .onChange(of: isReordering) { _, active in
-            if !active { reorderDrag = nil }
-        }
-        .onChange(of: measurement, initial: true) { _, measurement in
-            recordMetricColumn(measurement)
         }
     }
 
@@ -1802,6 +1884,7 @@ struct SearchChip: View {
 struct SearchResultRow: View {
     @Environment(AppState.self) private var appState
     let info: SymbolInfo
+    var isSelected: Bool = false
     let onOpen: () -> Void
     let onAdd: () -> Void
     let onRemove: () -> Void
@@ -1865,11 +1948,16 @@ struct SearchResultRow: View {
             .padding(.vertical, 5)
             .background(
                 RoundedRectangle(cornerRadius: 7)
-                    .fill(hovering ? Color.primary.opacity(0.05) : .clear)
+                    .fill(
+                        isSelected
+                            ? Color.accentColor.opacity(hovering ? 0.2 : 0.15)
+                            : (hovering ? Color.primary.opacity(0.05) : .clear)
+                    )
             )
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
+        .accessibilityAddTraits(isSelected ? .isSelected : [])
         .accessibilityLabel(PulseLocalization.localizedString("search.viewDetail", info.resolvedDisplayName))
         .onHover { hovering = $0 }
     }
@@ -1899,6 +1987,8 @@ struct WatchRow: View {
     let metricColumnWidth: CGFloat
     var isPinned: Bool = false
     var isReordering: Bool = false
+    /// The row whose detail the desktop window is showing.
+    var isSelected: Bool = false
     let onOpen: () -> Void
     @State private var hovering = false
 
@@ -2002,11 +2092,23 @@ struct WatchRow: View {
         .padding(.horizontal, 8)
         .padding(.vertical, 8)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(
-            RoundedRectangle(cornerRadius: 7)
-                .fill(hovering || isReordering ? Color.primary.opacity(0.05) : .clear)
-        )
+        .background {
+            // A tint rather than the system's solid selection: white text on an
+            // accent fill would erase the red/green the prices are read by.
+            if isSelected && !isReordering {
+                RoundedRectangle(cornerRadius: 7)
+                    .fill(Color.accentColor.opacity(hovering ? 0.2 : 0.15))
+                    .overlay {
+                        RoundedRectangle(cornerRadius: 7)
+                            .strokeBorder(Color.accentColor.opacity(0.35), lineWidth: 0.5)
+                    }
+            } else {
+                RoundedRectangle(cornerRadius: 7)
+                    .fill(hovering || isReordering ? Color.primary.opacity(0.05) : .clear)
+            }
+        }
         .contentShape(RoundedRectangle(cornerRadius: 7))
+        .accessibilityAddTraits(isSelected ? .isSelected : [])
         // Hover feedback stays frozen while a row is being dragged: the row surfaces
         // already show the reorder tint, and toggling hover under the pointer as it
         // crosses rows would flicker mid-drag.

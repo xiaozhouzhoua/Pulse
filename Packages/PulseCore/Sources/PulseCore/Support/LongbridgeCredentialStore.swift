@@ -5,7 +5,7 @@ import Security
 /// credentials and OAuth tokens live under separate accounts. Both can trade the user's
 /// account, so neither ever touches UserDefaults.
 public enum LongbridgeCredentialStore {
-    private static let legacyService = "app.pulse.longbridge"
+    private static let legacyService = "local.quote.longbridge"
     private static let apiKeyAccount = "openapi-credentials"
     private static let oauthAccount = "oauth-tokens"
     private static let oauthClientAccount = "oauth-client-registration"
@@ -15,14 +15,14 @@ public enum LongbridgeCredentialStore {
     /// keep their authorization after upgrading.
     private static var service: String {
         switch Bundle.main.bundleIdentifier {
-        case "app.pulse.mac": "\(legacyService).release"
-        case "app.pulse.mac.dev": "\(legacyService).debug"
+        case "local.quote.mac": "\(legacyService).release"
+        case "local.quote.mac.dev": "\(legacyService).debug"
         default: legacyService
         }
     }
 
     private static var migratesLegacyService: Bool {
-        Bundle.main.bundleIdentifier == "app.pulse.mac"
+        Bundle.main.bundleIdentifier == "local.quote.mac"
     }
 
     // MARK: - Legacy API-key credentials

@@ -14,7 +14,7 @@
 "action.pinWindow" = "Pin as Window";
 "action.unpinWindow" = "Unpin Window";
 "action.pinToMenuBar" = "Show in Menu Bar";
-"action.quitPulse" = "Quit Pulse";
+"action.quitPulse" = "Quit Tick";
 "action.refreshNow" = "Refresh";
 "action.retry" = "Retry";
 "action.save" = "Save";
@@ -29,6 +29,8 @@
 "chart.close" = "Close";
 "chart.high" = "High";
 "chart.low" = "Low";
+"chart.loadFailed" = "Chart couldn't load";
+"chart.loadFailedHint" = "The network or the data source is temporarily unavailable.";
 "chart.noData" = "No data";
 "chart.noPeriodData" = "No %@ data is available for this symbol.";
 "chart.open" = "Open";
@@ -49,8 +51,8 @@
 "onboarding.tour.back" = "Back";
 "onboarding.tour.gotIt" = "Got It";
 "onboarding.tour.next" = "Next";
-"onboarding.tour.pin.panel" = "Click the pin to keep Pulse as a floating window.";
-"onboarding.tour.pin.window" = "Click the pin to tuck Pulse into the menu bar — the menu bar icon brings it back anytime.";
+"onboarding.tour.pin.panel" = "Click the pin to keep Tick as a floating window.";
+"onboarding.tour.pin.window" = "Click the pin to tuck Tick into the menu bar — the menu bar icon brings it back anytime.";
 "onboarding.tour.detail" = "Click a row to see the intraday chart, candles, and more.";
 "onboarding.tour.search" = "Search for a ticker or company here, then click + on a result to add it.";
 "onboarding.tour.kline" = "Click Daily for the longer-term trend — Weekly and Monthly live here too.";
@@ -134,6 +136,7 @@
 
 "position.closed" = "Closed";
 "profile.loadFailed" = "Couldn’t load the description";
+"profile.summaryLanguage" = "Summary language";
 "profile.unavailable" = "No description available";
 "position.cost" = "Avg. Cost";
 "position.costPrice" = "Average Cost";
@@ -164,7 +167,7 @@
 "provider.status.fallback" = "Fallback";
 "provider.detail.capabilities" = "Capabilities";
 "provider.binance" = "Binance";
-"provider.composite" = "Pulse Composite";
+"provider.composite" = "Tick Composite";
 "provider.delay.delayed" = "Delayed";
 "provider.delay.partial" = "Partially real-time";
 "provider.delay.realtime" = "Real-time";
@@ -180,7 +183,7 @@
 "longbridge.oauth.reauthorize" = "Re-authorize Longbridge";
 "longbridge.client.label" = "Authorized client ID";
 "longbridge.access.delayed" = "Longbridge returned delayed access for this session. Your account entitlement may still be active; refresh authorization to renegotiate this app’s quote packages.";
-"longbridge.access.downgraded" = "Longbridge returned lower access than the real-time package this app previously negotiated. Refresh authorization; Pulse will never sign you out automatically.";
+"longbridge.access.downgraded" = "Longbridge returned lower access than the real-time package this app previously negotiated. Refresh authorization; Tick will never sign you out automatically.";
 "longbridge.account" = "Account";
 "longbridge.credentials.manual" = "Enter API keys manually";
 "longbridge.status.oauth" = "Verified (browser auth)";
@@ -192,12 +195,12 @@
 "longbridge.connection.connected" = "Market data connected";
 "longbridge.connection.fallback" = "Using fallback";
 "longbridge.connection.retry" = "Reconnect Market Data";
-"longbridge.connection.fallback.help" = "Longbridge is unavailable. Pulse is temporarily using a fallback market-data source.";
+"longbridge.connection.fallback.help" = "Longbridge is unavailable. Tick is temporarily using a fallback market-data source.";
 "longbridge.connection.error.limit" = "Longbridge rejected the connection because the account's live-connection limit is full. Close other OpenAPI sessions, then reconnect.";
-"longbridge.connection.error.authentication" = "Longbridge rejected the market-data session — the authorization may have expired or been revoked. Re-authorize below; Pulse never signs you out automatically.";
+"longbridge.connection.error.authentication" = "Longbridge rejected the market-data session — the authorization may have expired or been revoked. Re-authorize below; Tick never signs you out automatically.";
 "longbridge.connection.error.rateLimit" = "Longbridge is rate-limiting connection attempts. Wait briefly, then reconnect.";
-"longbridge.connection.error.network" = "The Longbridge market-data connection was interrupted. Pulse is temporarily using a fallback source.";
-"longbridge.connection.error.server" = "Longbridge returned a server error. Pulse is temporarily using a fallback source.";
+"longbridge.connection.error.network" = "The Longbridge market-data connection was interrupted. Tick is temporarily using a fallback source.";
+"longbridge.connection.error.server" = "Longbridge returned a server error. Tick is temporarily using a fallback source.";
 "longbridge.credentials.title" = "OpenAPI Credentials";
 "longbridge.credentials.status.configured" = "Configured";
 "longbridge.credentials.status.missing" = "Not configured";
@@ -225,6 +228,8 @@
 
 "quote.delay.minutes" = "Delayed ~%d min";
 "quote.cadence.seconds" = "%ds refresh";
+"quote.stale.minutes" = "No update %dm";
+"quote.stale.hours" = "No update %dh";
 "quote.price.close" = "Close";
 "quote.regularClose.previous" = "Prev Close";
 "quote.regularClose.today" = "At Close";
@@ -259,7 +264,7 @@
 "settings.general.language" = "Language";
 "settings.general.launchAtLogin" = "Launch at Login";
 "settings.general.anonymousAnalytics" = "Share Anonymous Usage Data";
-"settings.general.anonymousAnalyticsHelp" = "Helps improve Pulse by sharing app usage and technical metadata. Symbols, watchlists, positions, searches, and credentials are never sent.";
+"settings.general.anonymousAnalyticsHelp" = "Helps improve Tick by sharing app usage and technical metadata. Symbols, watchlists, positions, searches, and credentials are never sent.";
 "settings.market.colorRule" = "Gain Color";
 "settings.market.greenUp" = "Green for Gains";
 "settings.market.redUp" = "Red for Gains";
@@ -269,12 +274,12 @@
 "settings.menuBar.displayMode" = "Display Mode";
 "settings.menuBar.firstWatchlistItem" = "First in Watchlist";
 "settings.menuBar.fixedSymbol" = "Symbol";
-"settings.menuBar.iconOnlyHelp" = "Only the Pulse icon appears in the menu bar.";
+"settings.menuBar.iconOnlyHelp" = "Only the Tick icon appears in the menu bar.";
 "settings.menuBar.rotateInterval" = "Switch Every";
 "settings.menuBar.rotateGroup" = "Cycle List";
 "settings.menuBar.showQuote" = "Show Prices in Menu Bar";
 "settings.providers.allDisabled" = "All data sources are disabled. Quotes and search will be unavailable.";
-"settings.providers.help" = "Pulse automatically chooses the best available source and switches if one fails.";
+"settings.providers.help" = "Tick automatically chooses the best available source and switches if one fails.";
 "settings.section.general" = "General";
 "settings.section.market" = "Market";
 "settings.section.menuBar" = "Menu Bar";
@@ -298,6 +303,8 @@
 "stat.previousClose" = "Prev Close";
 "stat.amplitude" = "Range %";
 "stat.volume" = "Volume";
+"stat.turnover" = "Turnover";
+"stat.dayRange" = "Day Range";
 
 "status.loading" = "Loading…";
 "status.healthy" = "Quotes healthy";
@@ -358,7 +365,7 @@
 "position.quickEditTitle" = "Set Position Directly";
 "position.calibrationNotice" = "Saving overwrites your position with this quantity and cost, recorded as an “adjustment” — no realized P&L.";
 "position.empty.title" = "No Position Yet";
-"position.empty.subtitle" = "Record buys and sells — Pulse tracks cost and P&L for you";
+"position.empty.subtitle" = "Record buys and sells — Tick tracks cost and P&L for you";
 "position.historyTrades" = "Past Trades";
 "position.tradeCount" = "%d trades";
 "transaction.logTitle" = "Trade Log";
@@ -383,7 +390,7 @@
 "data.import.newList" = "new list";
 "data.import.willAdd" = "Will add %d symbols and %d lists";
 "data.import.someUnreadable" = "%d entries can’t be read and will be skipped";
-"data.import.unchanged" = "Everything here is already in Pulse";
+"data.import.unchanged" = "Everything here is already in Tick";
 "data.import.done" = "Added %d symbols and %d lists";
 "data.import.status.add" = "add";
 "data.import.status.present" = "already here";
@@ -391,12 +398,12 @@
 "data.import.status.unknownMarket" = "unknown market";
 "data.import.status.unreadable" = "can’t read";
 "data.error.emptyClipboard" = "The clipboard is empty. Copy an export first, or start from the example.";
-"data.error.notArchive" = "The clipboard doesn’t hold a Pulse export. Copy the example format to see what one looks like.";
-"data.error.newerVersion" = "That export came from a newer version of Pulse. Update and try again.";
+"data.error.notArchive" = "The clipboard doesn’t hold a Tick export. Copy the example format to see what one looks like.";
+"data.error.newerVersion" = "That export came from a newer version of Tick. Update and try again.";
 "data.error.noLists" = "That export has no lists in it.";
 "settings.data.row" = "Import & Export";
 "data.export.subtitle" = "Copy every list, order, pin, and trade as text";
-"data.import.subtitle" = "Read a Pulse export and review it before it lands";
+"data.import.subtitle" = "Read a Tick export and review it before it lands";
 "data.format.title" = "Format";
 "data.format.help" = "market is us, hk, sh, sz, or crypto; code is a ticker such as NVDA or 700, or a pair such as BTC/USDT. name, pinned, and transactions are optional.";
 "data.import.status.missingCode" = "no code";
@@ -405,7 +412,7 @@
 "settings.mcp.title" = "MCP";
 "settings.mcp.enable" = "Enable MCP Server";
 "settings.mcp.copyField" = "Copy";
-"settings.mcp.intro" = "Let Claude, ChatGPT, or any MCP-compatible client read and edit your watchlists and trades while Pulse is running.";
+"settings.mcp.intro" = "Let Claude, ChatGPT, or any MCP-compatible client read and edit your watchlists and trades while Tick is running.";
 "settings.mcp.tools.title" = "Tools";
 "settings.mcp.tools.read" = "List watchlist groups, positions, and cached quotes; search symbols";
 "settings.mcp.tools.watchlist" = "Create, rename, and delete groups; add or remove symbols";
@@ -453,4 +460,13 @@
 "feedback.emailUnavailableCopied" = "Mail unavailable · report copied";
 "feedback.emailUnavailable" = "Mail unavailable";
 "settings.section.support" = "Support";
-"settings.support.help" = "Send Email drafts a message to us with the diagnostics report attached. The report lists the Pulse and macOS versions, data-source status, and recent log lines from this session, and never includes your symbols, positions, or credentials. Without a mail client, copy the address and the report instead.";
+"settings.support.help" = "Send Email drafts a message to us with the diagnostics report attached. The report lists the Tick and macOS versions, data-source status, and recent log lines from this session, and never includes your symbols, positions, or credentials. Without a mail client, copy the address and the report instead.";
+
+"action.openMainWindow" = "Open Main Window";
+"settings.section.about" = "About";
+"settings.about.acknowledgements" = "Acknowledgements & Licenses";
+"settings.support.helpNoEmail" = "The diagnostics report lists the Tick and macOS versions, data-source status, and recent log lines from this session, and never includes your symbols, positions, or credentials.";
+"desktop.placeholder.title" = "Select a Symbol";
+"desktop.placeholder.message" = "Choose a symbol in the sidebar to see its chart, market data, and position, or search to add one.";
+"desktop.details.show" = "Show Details";
+"desktop.details.hide" = "Hide Details";

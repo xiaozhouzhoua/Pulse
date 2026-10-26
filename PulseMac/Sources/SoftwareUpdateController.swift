@@ -1,4 +1,34 @@
 import Foundation
+
+#if APP_STORE
+/// App Store builds are updated by the store (guideline 2.4.5(vii)) and do not link
+/// Sparkle. This stand-in keeps the same surface with nothing configured, so every
+/// update entry point hides itself exactly as it does in a build without a feed.
+@MainActor
+final class SoftwareUpdateController: ObservableObject {
+    static let shared = SoftwareUpdateController()
+
+    struct AvailableUpdate: Equatable {
+        var displayVersion: String
+        var build: String
+    }
+
+    let isConfigured = false
+    let availableUpdate: AvailableUpdate? = nil
+    let feedURL: String? = nil
+
+    var currentVersion: String {
+        Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "?"
+    }
+
+    var currentBuild: String {
+        Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? "?"
+    }
+
+    func start() {}
+    func checkForUpdates() {}
+}
+#else
 import Sparkle
 
 /// Sparkle, plus the one fact the UI wants from it: whether a newer build is
@@ -184,3 +214,4 @@ extension SoftwareUpdateController: @MainActor SPUStandardUserDriverDelegate {
         remember(update)
     }
 }
+#endif

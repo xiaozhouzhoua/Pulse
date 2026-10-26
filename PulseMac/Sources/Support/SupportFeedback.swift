@@ -4,11 +4,20 @@ import Foundation
 import OSLog
 import PulseCore
 
+/// Where this distribution sends people. Each value stays nil until the app has a
+/// destination of its own; every surface hides the entry for a missing one rather
+/// than pointing users at someone else's site or inbox.
+enum AppLinks {
+    static let website: URL? = nil
+    static let sourceCode: URL? = nil
+    static let supportEmail: String? = nil
+}
+
 /// How users reach us from inside the app: one address, shown in full so it can
-/// be copied when no mail client is set up. Every action ends outside Pulse (the
+/// be copied when no mail client is set up. Every action ends outside the app (the
 /// mail client or the clipboard); the app never sends anything on its own.
 enum SupportLinks {
-    static let supportEmail = "hello@pulseticker.app"
+    static var supportEmail: String? { AppLinks.supportEmail }
 
     /// Drafts the email in the default mail client through the system compose
     /// service: recipient and subject set, the environment line in the body, and
@@ -18,10 +27,11 @@ enum SupportLinks {
     /// back to the clipboard and the visible address.
     @MainActor
     static func composeEmail(environment: String, report: String) -> Bool {
-        guard let service = NSSharingService(named: .composeEmail),
+        guard let supportEmail,
+              let service = NSSharingService(named: .composeEmail),
               let attachment = try? writeReportFile(report) else { return false }
         service.recipients = [supportEmail]
-        service.subject = "Pulse feedback"
+        service.subject = "Quote feedback"
         let items: [Any] = ["\n\n---\n\(environment)\n", attachment]
         guard service.canPerform(withItems: items) else { return false }
         service.perform(withItems: items)
@@ -35,13 +45,14 @@ enum SupportLinks {
         formatter.locale = Locale(identifier: "en_US_POSIX")
         formatter.dateFormat = "yyyyMMdd-HHmmss"
         let url = FileManager.default.temporaryDirectory
-            .appendingPathComponent("Pulse-diagnostics-\(formatter.string(from: .now)).txt")
+            .appendingPathComponent("Quote-diagnostics-\(formatter.string(from: .now)).txt")
         try report.write(to: url, atomically: true, encoding: .utf8)
         return url
     }
 
     /// Copies the bare address. Returns whether it landed on the pasteboard.
     static func copyEmailAddress() -> Bool {
+        guard let supportEmail else { return false }
         let pasteboard = NSPasteboard.general
         pasteboard.clearContents()
         return pasteboard.writeObjects([supportEmail as NSString])
@@ -62,7 +73,7 @@ enum SupportDiagnostics {
     /// `Pulse 0.15.2 (152) · macOS 26.0 (Build 25A123) · arm64 · Mac16,1`
     static var environmentSummary: String {
         let bundle = Bundle.main
-        let name = bundle.object(forInfoDictionaryKey: "CFBundleDisplayName") as? String ?? "Pulse"
+        let name = bundle.object(forInfoDictionaryKey: "CFBundleDisplayName") as? String ?? "Quote"
         let version = bundle.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "?"
         let build = bundle.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? "?"
         var parts = [
@@ -119,7 +130,7 @@ enum SupportDiagnostics {
 
     static func report(_ snapshot: Snapshot) -> String {
         var lines: [String] = []
-        lines.append("# Pulse diagnostics report")
+        lines.append("# Quote diagnostics report")
         lines.append("Generated: \(ISO8601DateFormatter().string(from: .now))")
         lines.append("Contains app, system, settings, and data-source status plus recent log lines from this session. No symbols, watchlists, positions, searches, or credentials.")
         lines.append("")
@@ -140,7 +151,7 @@ enum SupportDiagnostics {
         if let available = updater.availableUpdate {
             lines.append(field("Update available", available.displayVersion))
         }
-        lines.append(field("Host", snapshot.host == .pinnedWindow ? "pinned window" : "menu bar"))
+        lines.append(field("Host", hostName(snapshot.host)))
         lines.append(field("Process uptime", uptimeDescription))
         lines.append("")
 
@@ -191,6 +202,14 @@ enum SupportDiagnostics {
         return lines.joined(separator: "\n")
     }
 
+    static func hostName(_ host: PulseHost) -> String {
+        switch host {
+        case .menuBar: "menu bar"
+        case .pinnedWindow: "pinned window"
+        case .desktop: "desktop window"
+        }
+    }
+
     /// Opens a mail draft with the report attached. When that is not possible the
     /// report is copied instead, and the return value says which happened so the
     /// UI can point at the address.
@@ -226,7 +245,7 @@ enum SupportDiagnostics {
     /// is the only scope a sandboxed app may open, and it is the one we want: it
     /// is exactly this session.
     private static func recentLogLines() -> [String] {
-        let subsystem = Bundle.main.bundleIdentifier ?? "app.pulse.mac"
+        let subsystem = Bundle.main.bundleIdentifier ?? "local.quote.mac"
         do {
             let store = try OSLogStore(scope: .currentProcessIdentifier)
             let position = store.position(date: Date().addingTimeInterval(-logWindow))

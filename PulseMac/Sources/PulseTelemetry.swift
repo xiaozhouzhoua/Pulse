@@ -16,10 +16,13 @@ enum PulseTelemetryEvent: String, Sendable {
 enum PulseTelemetry {
     private static let infoKey = "TelemetryDeckAppID"
     private static let logger = Logger(
-        subsystem: Bundle.main.bundleIdentifier ?? "app.pulse.mac",
+        subsystem: Bundle.main.bundleIdentifier ?? "local.quote.mac",
         category: "Telemetry"
     )
     private static var configuration: TelemetryDeck.Config?
+
+    /// False for builds without a TelemetryDeck app id, which can never send anything.
+    static var isConfigured: Bool { configuration != nil }
 
     static func configure(collectionEnabled: Bool) {
         guard configuration == nil else { return }
@@ -30,7 +33,7 @@ enum PulseTelemetry {
             return
         }
 
-        let subsystem = Bundle.main.bundleIdentifier ?? "app.pulse.mac"
+        let subsystem = Bundle.main.bundleIdentifier ?? "local.quote.mac"
         let sdkLogger = Logger(subsystem: subsystem, category: "Telemetry")
         let config = TelemetryDeck.Config(appID: appID)
         config.analyticsDisabled = !collectionEnabled
