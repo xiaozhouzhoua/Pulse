@@ -103,7 +103,7 @@ struct DetailScreen: View {
         isFirstLoad = false
         guard !Task.isCancelled else { return }
         withAnimation(.easeOut(duration: 0.18)) {
-            candles = loaded
+            candles = loaded.candles
             candlesKey = request
         }
     }
@@ -191,7 +191,7 @@ struct DetailScreen: View {
                     .font(.caption2.weight(.medium))
                     .foregroundStyle(.secondary)
                 HStack(alignment: .firstTextBaseline, spacing: 10) {
-                    Text(PriceFormatter.price(quote.price))
+                    Text(PriceFormatter.price(quote.price, market: symbol.market))
                         .font(.system(size: 40, weight: .semibold, design: .rounded).monospacedDigit())
                         .contentTransition(.numericText())
                     VStack(alignment: .leading, spacing: 0) {
@@ -315,14 +315,14 @@ struct DetailScreen: View {
                 .font(.footnote.weight(.semibold))
                 .foregroundStyle(.secondary)
             HStack(spacing: 8) {
-                stat(PulseLocalization.localizedString("stat.open"), quote?.open.map(PriceFormatter.price))
-                stat(PulseLocalization.localizedString("stat.high"), quote?.high.map(PriceFormatter.price))
-                stat(PulseLocalization.localizedString("stat.low"), quote?.low.map(PriceFormatter.price))
+                stat(PulseLocalization.localizedString("stat.open"), quote?.open.map { PriceFormatter.price($0, market: symbol.market) })
+                stat(PulseLocalization.localizedString("stat.high"), quote?.high.map { PriceFormatter.price($0, market: symbol.market) })
+                stat(PulseLocalization.localizedString("stat.low"), quote?.low.map { PriceFormatter.price($0, market: symbol.market) })
             }
             HStack(spacing: 8) {
                 stat(
                     PulseLocalization.localizedString("stat.previousClose"),
-                    quote.map { PriceFormatter.price($0.previousClose) }
+                    quote.map { PriceFormatter.price($0.previousClose, market: symbol.market) }
                 )
                 stat(
                     PulseLocalization.localizedString("stat.volume"),

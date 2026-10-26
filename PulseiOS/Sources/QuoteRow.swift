@@ -35,7 +35,7 @@ struct QuoteRow: View {
             sparkline
 
             VStack(alignment: .trailing, spacing: 3) {
-                Text(quote.map { PriceFormatter.price($0.price) } ?? "—")
+                Text(quote.map { PriceFormatter.price($0.price, market: item.symbol.market) } ?? "—")
                     .font(.body.weight(.semibold).monospacedDigit())
                     .lineLimit(1)
                     .minimumScaleFactor(0.72)

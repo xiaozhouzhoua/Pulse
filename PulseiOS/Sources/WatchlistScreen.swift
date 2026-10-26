@@ -26,7 +26,7 @@ struct WatchlistScreen: View {
                     quoteList
                 }
             }
-            .navigationTitle("Pulse")
+            .navigationTitle(Bundle.main.object(forInfoDictionaryKey: "CFBundleDisplayName") as? String ?? "Tick")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
