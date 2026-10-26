@@ -1,0 +1,191 @@
+- generic [active] [ref=e1]:
+  - banner "App Store Connect" [ref=e3]:
+    - generic [ref=e4]:
+      - heading [level=1] [ref=e6]:
+        - link "App Store Connect" [ref=e7] [cursor=pointer]:
+          - /url: /
+      - navigation "Global" [ref=e8]:
+        - list [ref=e42]:
+          - listitem [ref=e43]:
+            - link "Apps" [ref=e44] [cursor=pointer]:
+              - /url: /apps
+          - listitem [ref=e45]:
+            - link "Xcode Cloud" [ref=e46] [cursor=pointer]:
+              - /url: /teams/583191ed-0b64-4d92-9b59-1c3082247d37/xcode-cloud
+          - listitem [ref=e47]:
+            - link "Trends" [ref=e48] [cursor=pointer]:
+              - /url: /trends
+          - listitem [ref=e49]:
+            - link "Reports" [ref=e50] [cursor=pointer]:
+              - /url: /itc/payments_and_financial_reports
+        - generic [ref=e51] [cursor=pointer]
+      - button "广平 周 Mark Zhou|10184479518|1 Account name menu" [ref=e23] [cursor=pointer]:
+        - generic:
+          - generic: 广平 周
+          - generic: Mark Zhou|10184479518|1
+  - generic [ref=e61]:
+    - generic [ref=e62]:
+      - heading "Business" [level=1] [ref=e63]
+      - navigation [ref=e64]:
+        - listitem [ref=e65] [cursor=pointer]:
+          - generic [ref=e66]: Agreements
+    - paragraph [ref=e72]: A new version of your Paid Applications agreement is available.
+    - generic [ref=e74]:
+      - heading "Mark Zhou" [level=2] [ref=e76]
+      - generic [ref=e77]:
+        - generic [ref=e78]:
+          - paragraph [ref=e79]: 广平 周
+          - paragraph [ref=e80]: Jiangbei Residential Community
+          - paragraph [ref=e81]: Ruize Apartment 401
+          - paragraph [ref=e82]: Chang'an Town, Dongguan City, GUANGDONG 523857
+          - paragraph [ref=e83]: China mainland
+        - generic [ref=e84]:
+          - paragraph [ref=e86]: "94878847"
+          - generic [ref=e88]:
+            - paragraph [ref=e89]: 175 Countries or Regions
+            - paragraph [ref=e90]:
+              - button "View" [ref=e91] [cursor=pointer]
+    - generic [ref=e93]:
+      - heading "Agreements" [level=2] [ref=e94]
+      - table [ref=e95]:
+        - rowgroup [ref=e96]:
+          - row [ref=e97]:
+            - columnheader "Type" [ref=e98]
+            - columnheader "Countries or Regions" [ref=e99]
+            - columnheader "Effective Date" [ref=e100]
+            - columnheader "Status" [ref=e101]
+            - columnheader [ref=e102]
+        - rowgroup [ref=e103]:
+          - row [ref=e104]:
+            - cell "Paid Apps Agreement" [ref=e105]
+            - cell [ref=e106]:
+              - generic [ref=e108]:
+                - paragraph [ref=e109]: All Countries or Regions
+                - paragraph [ref=e110]:
+                  - button "View" [ref=e111] [cursor=pointer]
+            - cell "Sep 24, 2026 - Sep 21, 2027" [ref=e112]
+            - cell "Active (New Agreement Available)" [ref=e113]
+            - cell [ref=e114]:
+              - generic [ref=e115]:
+                - button [ref=e116] [cursor=pointer]
+                - button "View and Agree to Terms" [ref=e120] [cursor=pointer]
+          - row [ref=e121]:
+            - cell "Free Apps Agreement" [ref=e122]
+            - cell [ref=e123]:
+              - generic [ref=e125]:
+                - paragraph [ref=e126]: All Countries or Regions
+                - paragraph [ref=e127]:
+                  - button "View" [ref=e128] [cursor=pointer]
+            - cell "Oct 25, 2026 - Sep 21, 2027" [ref=e129]
+            - cell "Active" [ref=e130]
+            - cell [ref=e131]
+    - generic [ref=e133]:
+      - generic [ref=e134]:
+        - heading "Bank Accounts" [level=2] [ref=e135]:
+          - text: Bank Accounts
+          - button [ref=e136] [cursor=pointer]
+        - paragraph [ref=e139]:
+          - button "See More" [ref=e140] [cursor=pointer]
+      - table [ref=e141]:
+        - rowgroup [ref=e142]:
+          - row [ref=e143]:
+            - columnheader "Account" [ref=e144]
+            - columnheader "Country or Region" [ref=e145]
+            - columnheader "Bank Currency" [ref=e146]
+            - columnheader "Royalty Currencies" [ref=e147]
+            - columnheader "Status" [ref=e148]
+            - columnheader [ref=e149]
+        - rowgroup [ref=e150]:
+          - row [ref=e151]:
+            - cell [ref=e152]:
+              - button "Bank of China Limited (4440)" [ref=e153] [cursor=pointer]
+            - cell "China mainland" [ref=e154]
+            - cell "CNY" [ref=e155]
+            - cell [ref=e156]:
+              - paragraph [ref=e157]: USD
+            - cell "Active" [ref=e158]
+            - cell [ref=e159]:
+              - button [ref=e162] [cursor=pointer]
+    - generic [ref=e166]:
+      - heading "Tax Forms" [level=2] [ref=e167]:
+        - text: Tax Forms
+        - button [ref=e168] [cursor=pointer]
+      - table [ref=e171]:
+        - rowgroup [ref=e172]:
+          - row [ref=e173]:
+            - columnheader "Tax Form" [ref=e174]
+            - columnheader "Nickname" [ref=e175]
+            - columnheader "Date Submitted" [ref=e176]
+            - columnheader "Status" [ref=e177]
+            - columnheader [ref=e178]
+        - rowgroup [ref=e179]:
+          - row [ref=e180]:
+            - cell [ref=e181]:
+              - button "U.S. Certificate of Foreign Status of Beneficial Owner" [ref=e182] [cursor=pointer]
+            - cell "-" [ref=e183]
+            - cell "Sep 24, 2026" [ref=e184]
+            - cell "Active" [ref=e185]:
+              - paragraph [ref=e186]:
+                - generic [ref=e187]: Active
+            - cell [ref=e188]
+          - row [ref=e189]:
+            - cell [ref=e190]:
+              - button "U.S. Form W-8BEN" [ref=e191] [cursor=pointer]
+            - cell "-" [ref=e192]
+            - cell "Sep 24, 2026" [ref=e193]
+            - cell "Active" [ref=e194]:
+              - paragraph [ref=e195]:
+                - generic [ref=e196]: Active
+            - cell [ref=e197]
+    - generic [ref=e199]:
+      - heading "Compliance" [level=2] [ref=e200]
+      - table [ref=e201]:
+        - rowgroup [ref=e202]:
+          - row [ref=e203]:
+            - columnheader "Regulation" [ref=e204]
+            - columnheader "Countries or Regions" [ref=e205]
+            - columnheader "Last Updated" [ref=e206]
+            - columnheader "Status" [ref=e207]
+            - columnheader [ref=e208]
+        - rowgroup [ref=e209]:
+          - row [ref=e210]:
+            - cell [ref=e211]:
+              - button [ref=e212] [cursor=pointer]:
+                - paragraph [ref=e213]: Digital Services Act
+            - cell [ref=e214]:
+              - generic [ref=e216]:
+                - paragraph [ref=e217]: 27 Countries or Regions
+                - paragraph [ref=e218]:
+                  - button "View" [ref=e219] [cursor=pointer]
+            - cell "Sep 24, 2026" [ref=e220]
+            - cell [ref=e221]:
+              - paragraph [ref=e222]: Active
+            - cell [ref=e223]
+          - row [ref=e224]:
+            - cell [ref=e225]:
+              - button [ref=e226] [cursor=pointer]:
+                - paragraph [ref=e227]: State Council Decree No. 810
+            - cell [ref=e228]:
+              - paragraph [ref=e229]: China mainland
+            - cell "Sep 24, 2026" [ref=e230]
+            - cell "Active" [ref=e231]
+            - cell [ref=e234]
+  - contentinfo [ref=e28]:
+    - generic [ref=e29]:
+      - list [ref=e30]:
+        - listitem [ref=e53]:
+          - link "App Store Connect" [ref=e54] [cursor=pointer]:
+            - /url: /apps
+      - list [ref=e33]:
+        - listitem [ref=e34]: Copyright © 2026 Apple Inc. All rights reserved. |
+        - listitem [ref=e35]:
+          - link "Terms of Service" [ref=e36] [cursor=pointer]:
+            - /url: /WebObjects/iTunesConnect.woa/wa/termsOfService
+          - text: "|"
+        - listitem [ref=e37]:
+          - link "Privacy Policy" [ref=e38] [cursor=pointer]:
+            - /url: https://www.apple.com/legal/privacy
+          - text: "|"
+        - listitem [ref=e39]:
+          - link "Contact Us" [ref=e40] [cursor=pointer]:
+            - /url: /contact-us

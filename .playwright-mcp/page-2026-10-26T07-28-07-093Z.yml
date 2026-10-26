@@ -1,0 +1,299 @@
+- generic [active] [ref=f2e1]:
+  - banner "App Store Connect" [ref=f2e3]:
+    - generic [ref=f2e4]:
+      - heading [level=1] [ref=f2e6]:
+        - link "App Store Connect" [ref=f2e7] [cursor=pointer]:
+          - /url: /
+      - navigation "Global" [ref=f2e8]:
+        - list [ref=f2e10]:
+          - listitem [ref=f2e11]:
+            - link "Apps" [ref=f2e12] [cursor=pointer]:
+              - /url: /apps
+          - listitem [ref=f2e13]:
+            - link "Xcode Cloud" [ref=f2e14] [cursor=pointer]:
+              - /url: /teams/583191ed-0b64-4d92-9b59-1c3082247d37/xcode-cloud
+          - listitem [ref=f2e15]:
+            - link "Trends" [ref=f2e16] [cursor=pointer]:
+              - /url: /trends
+          - listitem [ref=f2e17]:
+            - link "Reports" [ref=f2e18] [cursor=pointer]:
+              - /url: /itc/payments_and_financial_reports
+        - generic [ref=f2e19] [cursor=pointer]
+      - button "广平 周 Mark Zhou|10184479518|1 Account name menu" [ref=f2e23] [cursor=pointer]:
+        - generic:
+          - generic: 广平 周
+          - generic: Mark Zhou|10184479518|1
+  - generic [ref=f2e29]:
+    - main [ref=f2e30]:
+      - generic [ref=f2e32]:
+        - generic [ref=f2e34]:
+          - generic [ref=f2e35]:
+            - generic [ref=f2e36]:
+              - heading "Apps" [level=2] [ref=f2e37]
+              - generic [ref=f2e38]:
+                - button "New App" [ref=f2e40] [cursor=pointer]
+                - button "more" [ref=f2e44] [cursor=pointer]:
+                  - img "Icons/Ellipsis" [ref=f2e46]
+            - generic [ref=f2e51]:
+              - button "Search" [ref=f2e54] [cursor=pointer]
+              - generic [ref=f2e57]:
+                - button "All Types" [ref=f2e59] [cursor=pointer]
+                - button "All Statuses" [ref=f2e63] [cursor=pointer]
+          - separator [ref=f2e66]
+        - generic [ref=f2e67]:
+          - generic [ref=f2e72]:
+            - paragraph
+            - paragraph [ref=f2e73]:
+              - text: Review the updated Paid Applications Schedule.In order to update your existing apps, create new in-app purchases, and submit new apps to the App Store, the user with the Legal role (Account Holder) must review and accept the Paid Applications Schedule (Schedule 2 to the Apple Developer Program License Agreement) in the
+              - link "Business" [ref=f2e74] [cursor=pointer]:
+                - /url: /business
+              - text: module. To accept this agreement, they must have already accepted the latest version of the Apple Developer Program License Agreement in their
+              - link "account on the developer website" [ref=f2e75] [cursor=pointer]:
+                - /url: https://developer.apple.com/account
+              - generic [ref=f2e76] [cursor=pointer]: .
+          - generic [ref=f2e77]:
+            - generic [ref=f2e83]:
+              - paragraph [ref=f2e84]: Preparing for iPhone Duo
+              - paragraph [ref=f2e85]:
+                - text: Get your apps ready for iPhone Duo so they look and work great across the latest devices. Starting in April 2027, screenshots will be required for any app using the iOS 27.1 SDK or later.
+                - link "Learn more..." [ref=f2e86] [cursor=pointer]:
+                  - /url: https://developer.apple.com/iphone-duo/
+            - button [ref=f2e87] [cursor=pointer]
+          - generic [ref=f2e90]:
+            - paragraph [ref=f2e93]: Help Improve the App Store
+            - paragraph [ref=f2e94]: Tell us about your experience managing, marketing, and distributing apps on the App Store by taking a short survey. Your feedback is important.
+            - paragraph [ref=f2e95]:
+              - link "Take the Survey" [ref=f2e96] [cursor=pointer]:
+                - /url: https://research.applesurveys.com/jfe/form/SV_eCZHKfeRx0VXzaS?referrerId=7e0d30f4-a807-4559-b606-6c9ee672d6c0
+            - button [ref=f2e97] [cursor=pointer]
+        - grid "grid" [ref=f2e103]:
+          - row [ref=f2e104]:
+            - gridcell [ref=f2e105]:
+              - generic [ref=f2e106]:
+                - gridcell [ref=f2e107]:
+                  - generic [ref=f2e621] [cursor=pointer]:
+                    - link "面试卡片" [ref=f2e623]:
+                      - /url: /apps/6821591249/distribution
+                      - generic "面试卡片" [ref=f2e624]:
+                        - img "面试卡片" [ref=f2e625]
+                    - generic [ref=f2e626]:
+                      - paragraph [ref=f2e627]:
+                        - link "面试卡片" [ref=f2e628]:
+                          - /url: /apps/6821591249/distribution
+                      - list:
+                        - listitem:
+                          - paragraph:
+                            - link "面试卡片 iOS 2.0 Waiting for Review" [ref=f2e629]:
+                              - /url: /apps/6821591249/distribution/ios/version/inflight
+                              - text: iOS 2.0 Waiting for Review
+                        - listitem:
+                          - paragraph:
+                            - link "面试卡片 macOS 2.0 Waiting for Review" [ref=f2e632]:
+                              - /url: /apps/6821591249/distribution/macos/version/inflight
+                              - text: macOS 2.0 Waiting for Review
+                - gridcell [ref=f2e123]:
+                  - generic [ref=f2e636] [cursor=pointer]:
+                    - link "出门 · 天气与户外时光" [ref=f2e638]:
+                      - /url: /apps/6826985235/distribution
+                      - generic "出门 · 天气与户外时光" [ref=f2e639]:
+                        - img "出门 · 天气与户外时光" [ref=f2e640]
+                    - generic [ref=f2e641]:
+                      - paragraph [ref=f2e642]:
+                        - link "出门 · 天气与户外时光" [ref=f2e643]:
+                          - /url: /apps/6826985235/distribution
+                      - list:
+                        - listitem:
+                          - paragraph:
+                            - link "出门 · 天气与户外时光 iOS 1.0.0 Waiting for Review" [ref=f2e644]:
+                              - /url: /apps/6826985235/distribution/ios/version/inflight
+                              - text: iOS 1.0.0 Waiting for Review
+                - gridcell [ref=f2e136]:
+                  - generic [ref=f2e648] [cursor=pointer]:
+                    - generic [ref=f2e649]:
+                      - link "云栈 · Codespaces 工作台" [ref=f2e650]:
+                        - /url: /apps/6820038121/distribution
+                        - generic "云栈 · Codespaces 工作台" [ref=f2e651]:
+                          - img "云栈 · Codespaces 工作台" [ref=f2e652]
+                      - button "View App Review Issues & Messages" [ref=f2e653]
+                    - generic [ref=f2e656]:
+                      - paragraph [ref=f2e657]:
+                        - link "云栈 · Codespaces 工作台" [ref=f2e658]:
+                          - /url: /apps/6820038121/distribution
+                      - paragraph [ref=f2e659]:
+                        - link "View App Review Issues & Messages" [ref=f2e660]:
+                          - /url: /apps/6820038121/distribution/reviewsubmissions
+                      - list:
+                        - listitem:
+                          - paragraph:
+                            - link "云栈 · Codespaces 工作台 iOS 0.4.0 Waiting for Review" [ref=f2e663]:
+                              - /url: /apps/6820038121/distribution/ios/version/inflight
+                              - text: iOS 0.4.0 Waiting for Review
+                        - listitem:
+                          - paragraph:
+                            - link "云栈 · Codespaces 工作台 macOS 0.4.0 Ready for Distribution" [ref=f2e666]:
+                              - /url: /apps/6820038121/distribution/macos/version/deliverable
+                              - text: macOS 0.4.0 Ready for Distribution
+              - separator [aria-hidden] [ref=f2e159]
+            - gridcell [ref=f2e160]:
+              - gridcell [ref=f2e162]:
+                - generic [ref=f2e670] [cursor=pointer]:
+                  - generic [ref=f2e671]:
+                    - link "linuxdoer" [ref=f2e672]:
+                      - /url: /apps/6815545549/distribution
+                      - generic "linuxdoer" [ref=f2e673]:
+                        - img "linuxdoer" [ref=f2e674]
+                    - button "View App Review Issues & Messages" [ref=f2e675]
+                  - generic [ref=f2e678]:
+                    - paragraph [ref=f2e679]:
+                      - link "linuxdoer" [ref=f2e680]:
+                        - /url: /apps/6815545549/distribution
+                    - paragraph [ref=f2e681]:
+                      - link "View App Review Issues & Messages" [ref=f2e682]:
+                        - /url: /apps/6815545549/distribution/reviewsubmissions
+                    - list:
+                      - listitem:
+                        - paragraph:
+                          - link "linuxdoer iOS 1.0 Rejected" [ref=f2e685]:
+                            - /url: /apps/6815545549/distribution/ios/version/inflight
+                            - text: iOS 1.0 Rejected
+              - separator [aria-hidden] [ref=f2e182]
+    - dialog [ref=f2e273]:
+      - document [ref=f2e274]:
+        - generic [ref=f2e275]:
+          - heading "New App" [level=2] [ref=f2e276]
+          - generic [ref=f2e277]:
+            - paragraph [ref=f2e691]: There are one or more validation errors below.
+            - generic [ref=f2e278]:
+              - generic [ref=f2e280]:
+                - generic [ref=f2e281]: Platforms
+                - button "More information" [ref=f2e283] [cursor=pointer]: "?"
+              - group "Select platforms" [ref=f2e284]:
+                - generic [ref=f2e285]:
+                  - checkbox "iOS" [checked] [ref=f2e286]
+                  - text: iOS
+                - generic [ref=f2e287]:
+                  - checkbox "macOS" [checked] [ref=f2e288]
+                  - text: macOS
+                - generic [ref=f2e289]:
+                  - checkbox "tvOS" [ref=f2e290]
+                  - text: tvOS
+                - generic [ref=f2e291]:
+                  - checkbox "visionOS" [ref=f2e292]
+                  - text: visionOS
+            - generic [ref=f2e293]:
+              - generic [ref=f2e295]:
+                - generic [ref=f2e296]: Name
+                - button "More information" [ref=f2e298] [cursor=pointer]: "?"
+              - textbox "Name" [ref=f2e300]: Tick
+              - generic [ref=f2e301]:
+                - paragraph [ref=f2e692]:
+                  - generic [ref=f2e693]:
+                    - text: The app name you entered is already being used. If you have trademark rights to this name and would like it released for your use,
+                    - link "submit a claim" [ref=f2e694] [cursor=pointer]:
+                      - /url: http://www.apple.com/legal/internet-services/itunes/appnamenotices/
+                    - text: .
+                - status "Characters remaining" [ref=f2e302]: "26"
+            - generic [ref=f2e303]:
+              - generic [ref=f2e305]:
+                - generic [ref=f2e306]: Primary Language
+                - button "More information" [ref=f2e308] [cursor=pointer]: "?"
+              - combobox "Primary Language" [ref=f2e310]:
+                - option "Choose" [disabled]
+                - option "Arabic"
+                - option "Bangla"
+                - option "Catalan"
+                - option "Chinese (Simplified)" [selected]
+                - option "Chinese (Traditional)"
+                - option "Croatian"
+                - option "Czech"
+                - option "Danish"
+                - option "Dutch"
+                - option "English (Australia)"
+                - option "English (Canada)"
+                - option "English (U.K.)"
+                - option "English (U.S.)"
+                - option "Finnish"
+                - option "French"
+                - option "French (Canada)"
+                - option "German"
+                - option "Greek"
+                - option "Gujarati"
+                - option "Hebrew"
+                - option "Hindi"
+                - option "Hungarian"
+                - option "Indonesian"
+                - option "Italian"
+                - option "Japanese"
+                - option "Kannada"
+                - option "Korean"
+                - option "Malay"
+                - option "Malayalam"
+                - option "Marathi"
+                - option "Norwegian"
+                - option "Odia"
+                - option "Polish"
+                - option "Portuguese (Brazil)"
+                - option "Portuguese (Portugal)"
+                - option "Punjabi"
+                - option "Romanian"
+                - option "Russian"
+                - option "Slovak"
+                - option "Slovenian"
+                - option "Spanish (Mexico)"
+                - option "Spanish (Spain)"
+                - option "Swedish"
+                - option "Tamil"
+                - option "Telugu"
+                - option "Thai"
+                - option "Turkish"
+                - option "Ukrainian"
+                - option "Urdu"
+                - option "Vietnamese"
+            - generic [ref=f2e311]:
+              - generic [ref=f2e313]:
+                - generic [ref=f2e314]: Bundle ID
+                - button "More information" [ref=f2e316] [cursor=pointer]: "?"
+              - combobox "Bundle ID" [ref=f2e318]:
+                - option "Choose" [disabled]
+                - option "Tick - com.DD495M342Y.tick" [selected]
+                - option "XC com 87ZMDY4JPC linuxdoer share - com.87ZMDY4JPC.linuxdoer.share"
+                - option "XC com 87ZMDY4JPC linuxdoer widget - com.87ZMDY4JPC.linuxdoer.widget"
+                - option "XC com DD495M342Y linuxdoer - com.DD495M342Y.linuxdoer"
+                - option "XC com DD495M342Y linuxdoer widget - com.DD495M342Y.linuxdoer.widget"
+                - option "Xcode iOS App ID com wuziqi SenPlayer DD495M342Y - com.wuziqi.SenPlayer.DD495M342Y"
+            - generic [ref=f2e322]:
+              - generic [ref=f2e324]:
+                - generic [ref=f2e325]: SKU
+                - button "More information" [ref=f2e327] [cursor=pointer]: "?"
+              - textbox "SKU" [ref=f2e329]: tick-universal
+            - generic [ref=f2e330]:
+              - generic [ref=f2e332]:
+                - generic [ref=f2e333]: User Access
+                - button "More information" [ref=f2e335] [cursor=pointer]: "?"
+              - generic [ref=f2e337]:
+                - generic [ref=f2e338]:
+                  - radio "Limited Access" [disabled] [ref=f2e339]
+                  - text: Limited Access
+                - generic [ref=f2e340]:
+                  - radio "Full Access" [checked] [ref=f2e341]
+                  - text: Full Access
+        - generic [ref=f2e343]:
+          - button "Cancel" [ref=f2e345] [cursor=pointer]
+          - button "Create" [disabled] [ref=f2e347]
+  - contentinfo [ref=f2e184]:
+    - generic [ref=f2e185]:
+      - list [ref=f2e186]:
+        - listitem [ref=f2e187]: App Store Connect
+      - list [ref=f2e188]:
+        - listitem [ref=f2e189]: Copyright © 2026 Apple Inc. All rights reserved. |
+        - listitem [ref=f2e190]:
+          - link "Terms of Service" [ref=f2e191] [cursor=pointer]:
+            - /url: /WebObjects/iTunesConnect.woa/wa/termsOfService
+          - text: "|"
+        - listitem [ref=f2e192]:
+          - link "Privacy Policy" [ref=f2e193] [cursor=pointer]:
+            - /url: https://www.apple.com/legal/privacy
+          - text: "|"
+        - listitem [ref=f2e194]:
+          - link "Contact Us" [ref=f2e195] [cursor=pointer]:
+            - /url: /contact-us

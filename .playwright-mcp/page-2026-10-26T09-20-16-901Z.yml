@@ -1,0 +1,47 @@
+- generic [ref=f4e2]:
+  - link "Apple.com" [ref=f4e4] [cursor=pointer]:
+    - /url: http://www.apple.com
+  - iframe [active] [ref=f4e10]:
+    - generic [active] [ref=f5e1]:
+      - main [ref=f5e2]:
+        - generic [ref=f5e8]:
+          - img "App Store Connect Logo" [ref=f5e11]
+          - generic [ref=f5e14]:
+            - heading "App Store Connect" [level=1] [ref=f5e16]
+            - paragraph
+            - group "App Store Connect" [ref=f5e19]:
+              - generic [ref=f5e20]:
+                - generic [ref=f5e21]:
+                  - generic [ref=f5e24]:
+                    - textbox "Email or Phone Number" [invalid] [ref=f5e25]: 1445101933@qq.com
+                    - generic [aria-hidden]: Email or Phone Number
+                  - generic [ref=f5e48]:
+                    - textbox "Password" [invalid] [ref=f5e49]: Ldd15367027615
+                    - generic [aria-hidden]: Password
+                    - generic [aria-hidden] [ref=f5e27]: Failed to verify your identity. Try again.
+                  - generic [ref=f5e53]:
+                    - text: 
+                    - generic [ref=f5e54]: Failed to verify your identity. Try again.
+                  - paragraph [ref=f5e32]:
+                    - text: Your Apple Account information is used to allow you to sign in securely and access your data. Apple records certain data for security, support, and reporting purposes. If you agree, Apple may also use your Apple Account information to send you marketing emails and communications, including based on your use of Apple services.
+                    - link [ref=f5e55] [cursor=pointer]:
+                      - /url: https://www.apple.com/legal/privacy/data/en/apple-id/
+                      - text: See how your data is managed...
+                      - generic [ref=f5e34]: Opens in a new window.
+                - generic [ref=f5e35]:
+                  - generic [ref=f5e37]:
+                    - button "Sign In" [disabled]
+                  - generic [ref=f5e38]:
+                    - button "Sign in with Passkey" [ref=f5e40] [cursor=pointer]
+                    - paragraph [ref=f5e44]: Requires a device with iOS 17 or later.
+      - status [ref=f5e45]
+  - contentinfo [ref=f4e11]:
+    - navigation "footer" [ref=f4e12]:
+      - generic [ref=f4e13]:
+        - text: Copyright ©
+        - generic [ref=f4e14]: "2026"
+        - text: Apple Inc. All rights reserved.
+      - link "Terms of Service" [ref=f4e15] [cursor=pointer]:
+        - /url: /olympus/v1/terms/ASC
+      - link "Privacy Policy" [ref=f4e16] [cursor=pointer]:
+        - /url: https://www.apple.com/legal/privacy/

@@ -470,3 +470,11 @@
 "desktop.placeholder.message" = "サイドバーで銘柄を選ぶと、チャート、マーケット、保有を表示します。検索して追加することもできます。";
 "desktop.details.show" = "詳細を表示";
 "desktop.details.hide" = "詳細を隠す";
+
+/* iOS app */
+"action.close" = "閉じる";
+"action.addSymbol" = "銘柄を追加";
+"action.addToWatchlist" = "ウォッチリストに追加";
+"action.removeFromWatchlist" = "ウォッチリストから削除";
+"watchlist.empty.title" = "ウォッチリストは空です";
+"stat.turnover" = "売買代金";

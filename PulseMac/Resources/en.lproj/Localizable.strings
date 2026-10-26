@@ -470,3 +470,11 @@
 "desktop.placeholder.message" = "Choose a symbol in the sidebar to see its chart, market data, and position, or search to add one.";
 "desktop.details.show" = "Show Details";
 "desktop.details.hide" = "Hide Details";
+
+/* iOS app */
+"action.close" = "Close";
+"action.addSymbol" = "Add Symbol";
+"action.addToWatchlist" = "Add to Watchlist";
+"action.removeFromWatchlist" = "Remove from Watchlist";
+"watchlist.empty.title" = "Your Watchlist Is Empty";
+"stat.turnover" = "Turnover";

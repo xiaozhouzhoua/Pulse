@@ -1,0 +1,191 @@
+- generic [active] [ref=f2e1]:
+  - banner "App Store Connect" [ref=f2e3]:
+    - generic [ref=f2e4]:
+      - heading [level=1] [ref=f2e20]:
+        - link "App Store Connect" [ref=f2e21] [cursor=pointer]:
+          - /url: /
+      - navigation "Global" [ref=f2e7]:
+        - list [ref=f2e23]:
+          - listitem [ref=f2e24]:
+            - link "Apps" [ref=f2e25] [cursor=pointer]:
+              - /url: /apps
+          - listitem [ref=f2e26]:
+            - link "Xcode Cloud" [ref=f2e27] [cursor=pointer]:
+              - /url: /teams/583191ed-0b64-4d92-9b59-1c3082247d37/xcode-cloud
+          - listitem [ref=f2e28]:
+            - link "Trends" [ref=f2e29] [cursor=pointer]:
+              - /url: /trends
+          - listitem [ref=f2e30]:
+            - link "Reports" [ref=f2e31] [cursor=pointer]:
+              - /url: /itc/payments_and_financial_reports
+        - generic [ref=f2e32] [cursor=pointer]
+      - button "广平 周 Mark Zhou|10184479518|1 Account name menu" [ref=f2e36] [cursor=pointer]:
+        - generic:
+          - generic: 广平 周
+          - generic: Mark Zhou|10184479518|1
+  - generic [ref=f2e45]:
+    - generic [ref=f2e46]:
+      - heading "Business" [level=1] [ref=f2e47]
+      - navigation [ref=f2e48]:
+        - listitem [ref=f2e49] [cursor=pointer]:
+          - generic [ref=f2e50]: Agreements
+    - paragraph [ref=f2e56]: A new version of your Paid Applications agreement is available.
+    - generic [ref=f2e58]:
+      - heading "Mark Zhou" [level=2] [ref=f2e60]
+      - generic [ref=f2e61]:
+        - generic [ref=f2e62]:
+          - paragraph [ref=f2e63]: 广平 周
+          - paragraph [ref=f2e64]: Jiangbei Residential Community
+          - paragraph [ref=f2e65]: Ruize Apartment 401
+          - paragraph [ref=f2e66]: Chang'an Town, Dongguan City, GUANGDONG 523857
+          - paragraph [ref=f2e67]: China mainland
+        - generic [ref=f2e68]:
+          - paragraph [ref=f2e70]: "94878847"
+          - generic [ref=f2e72]:
+            - paragraph [ref=f2e73]: 175 Countries or Regions
+            - paragraph [ref=f2e74]:
+              - button "View" [ref=f2e75] [cursor=pointer]
+    - generic [ref=f2e77]:
+      - heading "Agreements" [level=2] [ref=f2e78]
+      - table [ref=f2e79]:
+        - rowgroup [ref=f2e80]:
+          - row [ref=f2e81]:
+            - columnheader "Type" [ref=f2e82]
+            - columnheader "Countries or Regions" [ref=f2e83]
+            - columnheader "Effective Date" [ref=f2e84]
+            - columnheader "Status" [ref=f2e85]
+            - columnheader [ref=f2e86]
+        - rowgroup [ref=f2e87]:
+          - row [ref=f2e88]:
+            - cell "Paid Apps Agreement" [ref=f2e89]
+            - cell [ref=f2e90]:
+              - generic [ref=f2e92]:
+                - paragraph [ref=f2e93]: All Countries or Regions
+                - paragraph [ref=f2e94]:
+                  - button "View" [ref=f2e95] [cursor=pointer]
+            - cell "Sep 24, 2026 - Sep 21, 2027" [ref=f2e96]
+            - cell "Active (New Agreement Available)" [ref=f2e97]
+            - cell [ref=f2e98]:
+              - generic [ref=f2e99]:
+                - button [ref=f2e100] [cursor=pointer]
+                - button "View and Agree to Terms" [ref=f2e104] [cursor=pointer]
+          - row [ref=f2e105]:
+            - cell "Free Apps Agreement" [ref=f2e106]
+            - cell [ref=f2e107]:
+              - generic [ref=f2e109]:
+                - paragraph [ref=f2e110]: All Countries or Regions
+                - paragraph [ref=f2e111]:
+                  - button "View" [ref=f2e112] [cursor=pointer]
+            - cell "Oct 25, 2026 - Sep 21, 2027" [ref=f2e113]
+            - cell "Active" [ref=f2e114]
+            - cell [ref=f2e115]
+    - generic [ref=f2e117]:
+      - generic [ref=f2e118]:
+        - heading "Bank Accounts" [level=2] [ref=f2e119]:
+          - text: Bank Accounts
+          - button [ref=f2e120] [cursor=pointer]
+        - paragraph [ref=f2e123]:
+          - button "See More" [ref=f2e124] [cursor=pointer]
+      - table [ref=f2e125]:
+        - rowgroup [ref=f2e126]:
+          - row [ref=f2e127]:
+            - columnheader "Account" [ref=f2e128]
+            - columnheader "Country or Region" [ref=f2e129]
+            - columnheader "Bank Currency" [ref=f2e130]
+            - columnheader "Royalty Currencies" [ref=f2e131]
+            - columnheader "Status" [ref=f2e132]
+            - columnheader [ref=f2e133]
+        - rowgroup [ref=f2e134]:
+          - row [ref=f2e135]:
+            - cell [ref=f2e136]:
+              - button "Bank of China Limited (4440)" [ref=f2e137] [cursor=pointer]
+            - cell "China mainland" [ref=f2e138]
+            - cell "CNY" [ref=f2e139]
+            - cell [ref=f2e140]:
+              - paragraph [ref=f2e141]: USD
+            - cell "Active" [ref=f2e142]
+            - cell [ref=f2e143]:
+              - button [ref=f2e146] [cursor=pointer]
+    - generic [ref=f2e150]:
+      - heading "Tax Forms" [level=2] [ref=f2e151]:
+        - text: Tax Forms
+        - button [ref=f2e152] [cursor=pointer]
+      - table [ref=f2e155]:
+        - rowgroup [ref=f2e156]:
+          - row [ref=f2e157]:
+            - columnheader "Tax Form" [ref=f2e158]
+            - columnheader "Nickname" [ref=f2e159]
+            - columnheader "Date Submitted" [ref=f2e160]
+            - columnheader "Status" [ref=f2e161]
+            - columnheader [ref=f2e162]
+        - rowgroup [ref=f2e163]:
+          - row [ref=f2e164]:
+            - cell [ref=f2e165]:
+              - button "U.S. Certificate of Foreign Status of Beneficial Owner" [ref=f2e166] [cursor=pointer]
+            - cell "-" [ref=f2e167]
+            - cell "Sep 24, 2026" [ref=f2e168]
+            - cell "Active" [ref=f2e169]:
+              - paragraph [ref=f2e170]:
+                - generic [ref=f2e171]: Active
+            - cell [ref=f2e172]
+          - row [ref=f2e173]:
+            - cell [ref=f2e174]:
+              - button "U.S. Form W-8BEN" [ref=f2e175] [cursor=pointer]
+            - cell "-" [ref=f2e176]
+            - cell "Sep 24, 2026" [ref=f2e177]
+            - cell "Active" [ref=f2e178]:
+              - paragraph [ref=f2e179]:
+                - generic [ref=f2e180]: Active
+            - cell [ref=f2e181]
+    - generic [ref=f2e183]:
+      - heading "Compliance" [level=2] [ref=f2e184]
+      - table [ref=f2e185]:
+        - rowgroup [ref=f2e186]:
+          - row [ref=f2e187]:
+            - columnheader "Regulation" [ref=f2e188]
+            - columnheader "Countries or Regions" [ref=f2e189]
+            - columnheader "Last Updated" [ref=f2e190]
+            - columnheader "Status" [ref=f2e191]
+            - columnheader [ref=f2e192]
+        - rowgroup [ref=f2e193]:
+          - row [ref=f2e194]:
+            - cell [ref=f2e195]:
+              - button [ref=f2e196] [cursor=pointer]:
+                - paragraph [ref=f2e197]: Digital Services Act
+            - cell [ref=f2e198]:
+              - generic [ref=f2e200]:
+                - paragraph [ref=f2e201]: 27 Countries or Regions
+                - paragraph [ref=f2e202]:
+                  - button "View" [ref=f2e203] [cursor=pointer]
+            - cell "Sep 24, 2026" [ref=f2e204]
+            - cell [ref=f2e205]:
+              - paragraph [ref=f2e206]: Active
+            - cell [ref=f2e207]
+          - row [ref=f2e208]:
+            - cell [ref=f2e209]:
+              - button [ref=f2e210] [cursor=pointer]:
+                - paragraph [ref=f2e211]: State Council Decree No. 810
+            - cell [ref=f2e212]:
+              - paragraph [ref=f2e213]: China mainland
+            - cell "Sep 24, 2026" [ref=f2e214]
+            - cell "Active" [ref=f2e215]
+            - cell [ref=f2e218]
+  - contentinfo [ref=f2e10]:
+    - generic [ref=f2e11]:
+      - list [ref=f2e219]:
+        - listitem [ref=f2e220]:
+          - link "App Store Connect" [ref=f2e221] [cursor=pointer]:
+            - /url: /apps
+      - list [ref=f2e12]:
+        - listitem [ref=f2e13]: Copyright © 2026 Apple Inc. All rights reserved. |
+        - listitem [ref=f2e14]:
+          - link "Terms of Service" [ref=f2e15] [cursor=pointer]:
+            - /url: /WebObjects/iTunesConnect.woa/wa/termsOfService
+          - text: "|"
+        - listitem [ref=f2e16]:
+          - link "Privacy Policy" [ref=f2e17] [cursor=pointer]:
+            - /url: https://www.apple.com/legal/privacy
+          - text: "|"
+        - listitem [ref=f2e18]:
+          - link "Contact Us" [ref=f2e19] [cursor=pointer]:
+            - /url: /contact-us

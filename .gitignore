@@ -72,3 +72,8 @@ xcuserdata/
 # Local build/install copies of the app bundle.
 /Quote.app
 /Tick.app
+
+# App Store Connect automation artifacts and store assets
+/.asc/
+/screenshots/raw/
+/screenshots/raw-paired/

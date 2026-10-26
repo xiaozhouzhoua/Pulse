@@ -470,3 +470,11 @@
 "desktop.placeholder.message" = "在左侧自选中选择标的，查看图表、行情与持仓；也可以搜索添加。";
 "desktop.details.show" = "显示详情栏";
 "desktop.details.hide" = "隐藏详情栏";
+
+/* iOS app */
+"action.close" = "关闭";
+"action.addSymbol" = "添加自选";
+"action.addToWatchlist" = "加入自选";
+"action.removeFromWatchlist" = "移出自选";
+"watchlist.empty.title" = "自选列表还是空的";
+"stat.turnover" = "成交额";

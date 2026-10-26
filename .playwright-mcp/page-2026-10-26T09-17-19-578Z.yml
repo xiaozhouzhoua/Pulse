@@ -1,0 +1,44 @@
+- generic [active] [ref=e1]:
+  - banner "App Store Connect" [ref=e3]:
+    - generic [ref=e4]:
+      - heading [level=1] [ref=e6]:
+        - link "App Store Connect" [ref=e7] [cursor=pointer]:
+          - /url: /
+      - navigation "Global" [ref=e8]:
+        - list [ref=e10]:
+          - listitem [ref=e11]:
+            - link "Apps" [ref=e12] [cursor=pointer]:
+              - /url: /apps
+          - listitem [ref=e13]:
+            - link "Xcode Cloud" [ref=e14] [cursor=pointer]:
+              - /url: /teams/583191ed-0b64-4d92-9b59-1c3082247d37/xcode-cloud
+          - listitem [ref=e15]:
+            - link "Trends" [ref=e16] [cursor=pointer]:
+              - /url: /trends
+          - listitem [ref=e17]:
+            - link "Reports" [ref=e18] [cursor=pointer]:
+              - /url: /itc/payments_and_financial_reports
+        - generic [ref=e19] [cursor=pointer]
+      - button "广平 周 Mark Zhou|10184479518|1 Account name menu" [ref=e23] [cursor=pointer]:
+        - generic:
+          - generic: 广平 周
+          - generic: Mark Zhou|10184479518|1
+  - contentinfo [ref=e28]:
+    - generic [ref=e29]:
+      - list [ref=e30]:
+        - listitem [ref=e31]:
+          - link "App Store Connect" [ref=e32] [cursor=pointer]:
+            - /url: /apps
+      - list [ref=e33]:
+        - listitem [ref=e34]: Copyright © 2026 Apple Inc. All rights reserved. |
+        - listitem [ref=e35]:
+          - link "Terms of Service" [ref=e36] [cursor=pointer]:
+            - /url: /WebObjects/iTunesConnect.woa/wa/termsOfService
+          - text: "|"
+        - listitem [ref=e37]:
+          - link "Privacy Policy" [ref=e38] [cursor=pointer]:
+            - /url: https://www.apple.com/legal/privacy
+          - text: "|"
+        - listitem [ref=e39]:
+          - link "Contact Us" [ref=e40] [cursor=pointer]:
+            - /url: /contact-us
