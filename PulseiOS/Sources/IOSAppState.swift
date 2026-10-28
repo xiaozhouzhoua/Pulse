@@ -350,10 +350,7 @@ final class IOSAppState {
     }
 
     private func formatMarketTime(_ date: Date, market: Market) -> String {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "HH:mm:ss"
-        formatter.timeZone = market.timeZone
-        return formatter.string(from: date)
+        MarketTimeFormatter.string(from: date, timeZone: market.timeZone)
     }
 
     // MARK: - Search
@@ -380,5 +377,29 @@ final class IOSAppState {
             }
         }
         return results
+    }
+}
+
+/// `HH:mm:ss` market clocks for the detail meta row, cached per timezone:
+/// DateFormatter construction is among the heaviest Foundation inits, and this
+/// text re-renders on every quote tick. `en_US_POSIX` keeps the clock on the
+/// Gregorian calendar whatever calendar the device locale prefers.
+@MainActor
+private enum MarketTimeFormatter {
+    private static var cache: [String: DateFormatter] = [:]
+
+    static func string(from date: Date, timeZone: TimeZone) -> String {
+        let formatter: DateFormatter
+        if let cached = cache[timeZone.identifier] {
+            formatter = cached
+        } else {
+            let created = DateFormatter()
+            created.locale = Locale(identifier: "en_US_POSIX")
+            created.timeZone = timeZone
+            created.dateFormat = "HH:mm:ss"
+            cache[timeZone.identifier] = created
+            formatter = created
+        }
+        return formatter.string(from: date)
     }
 }

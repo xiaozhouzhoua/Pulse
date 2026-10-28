@@ -571,6 +571,7 @@ private struct CalendarDatePicker: NSViewRepresentable {
         Coordinator(self)
     }
 
+    @MainActor
     final class Coordinator: NSObject {
         var parent: CalendarDatePicker
 

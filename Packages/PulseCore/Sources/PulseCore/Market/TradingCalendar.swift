@@ -7,10 +7,12 @@ public enum SessionState: String, Sendable {
 }
 
 /// Trading sessions per market (in each exchange's time zone).
-/// TODO: holiday calendar (Chinese New Year / National Day / Thanksgiving, etc.); the MVP uses a simple Monday-to-Friday rule.
-/// Japan makes this the most visible gap: about twenty public holidays plus the
-/// 12/31–1/3 exchange closure means roughly six weeks of weekdays a year are
-/// reported open when Tokyo is shut.
+/// Full-day US exchange holidays are modeled (NYSE/Nasdaq schedule). The Asian
+/// exchanges still use the Monday–Friday rule: their lunar holidays need a
+/// published calendar per year, and a wrong "closed" would hide a live session.
+/// Japan makes the remaining gap the most visible: about twenty public holidays
+/// plus the 12/31–1/3 exchange closure means roughly six weeks of weekdays a
+/// year are reported open when Tokyo is shut.
 public enum TradingCalendar {
     public static func state(of market: Market, at date: Date = .now) -> SessionState {
         if market == .crypto { return .regular }
@@ -51,11 +53,13 @@ public enum TradingCalendar {
         }
 
         // The US overnight session runs Sun 20:00 ET through Fri 04:00 ET, so it is the one
-        // stretch that exists outside the Monday–Friday rule below.
+        // stretch that exists outside the Monday–Friday rule below. A holiday closes
+        // the overnight session that belongs to it, including the evening before.
         if market == .us {
-            if weekday == 1 { return m >= 20 * 60 ? .overnight : .closed } // Sunday evening opens the week
-            if (2...6).contains(weekday), m < 4 * 60 { return .overnight } // Mon–Fri small hours
-            if (2...5).contains(weekday), m >= 20 * 60 { return .overnight } // Mon–Thu nights (Friday night has no session)
+            if let sessionDay = usOvernightSessionDay(at: date) {
+                return isUSHoliday(sessionDay) ? .closed : .overnight
+            }
+            if isUSHoliday(CalendarDay(date, in: market.timeZone)) { return .closed }
         }
         guard (2...6).contains(weekday) else { return .closed }
 
@@ -116,13 +120,138 @@ public enum TradingCalendar {
     /// report them, whatever hour of the continuous session a bar falls in.
     public static func tradingDay(of market: Market, at date: Date) -> CalendarDay {
         let day = CalendarDay(date, in: market.timeZone)
-        guard market == .us, state(of: market, at: date) == .overnight else { return day }
+        guard market == .us, let sessionDay = usOvernightSessionDay(at: date) else { return day }
+        return sessionDay
+    }
+
+    // MARK: - US exchange holidays
+
+    /// The overnight session's trading day, or nil when the moment is not in
+    /// an overnight slice. Kept separate from `state` so `tradingDay` can ask
+    /// without recursing through the holiday check.
+    private static func usOvernightSessionDay(at date: Date) -> CalendarDay? {
         var calendar = Calendar(identifier: .gregorian)
-        calendar.timeZone = market.timeZone
-        let hour = calendar.component(.hour, from: date)
-        // The 00:00–04:00 slice already carries the session's own date.
-        guard hour >= 20, let next = calendar.date(byAdding: .day, value: 1, to: date) else { return day }
-        return CalendarDay(next, in: market.timeZone)
+        calendar.timeZone = Market.us.timeZone
+        let comps = calendar.dateComponents([.weekday, .hour], from: date)
+        guard let weekday = comps.weekday, let hour = comps.hour else { return nil }
+        let day = CalendarDay(date, in: Market.us.timeZone)
+        if weekday == 1 { return hour >= 20 ? adding(days: 1, to: day) : nil } // Sunday evening opens Monday
+        if (2...6).contains(weekday), hour < 4 { return day }                   // Mon–Fri small hours
+        if (2...5).contains(weekday), hour >= 20 { return adding(days: 1, to: day) } // Mon–Thu nights
+        return nil
+    }
+
+    /// Full-day closures only. Early closes (1:00 p.m. ET) are not modeled:
+    /// the extra hours still carry post-market prints, and a wrong "closed"
+    /// costs more than a few extra polls.
+    private static func isUSHoliday(_ day: CalendarDay) -> Bool {
+        // A Saturday New Year's Day is observed on December 31 of the previous
+        // year, so a date also has to be checked against the next year's set.
+        usHolidays(in: day.year).contains(day) || usHolidays(in: day.year + 1).contains(day)
+    }
+
+    /// Holiday sets are recomputed once per year rather than once per symbol per
+    /// tick: the scheduler asks this question for every quote it refreshes.
+    private static let holidayCacheLock = NSLock()
+    nonisolated(unsafe) private static var holidayCache: [Int: Set<CalendarDay>] = [:]
+
+    private static func usHolidays(in year: Int) -> Set<CalendarDay> {
+        holidayCacheLock.lock()
+        defer { holidayCacheLock.unlock() }
+        if let cached = holidayCache[year] { return cached }
+        let holidays: Set<CalendarDay> = [
+            observed(month: 1, day: 1, in: year),              // New Year's Day
+            nthWeekday(3, weekday: 2, month: 1, year: year),   // Martin Luther King Jr. Day
+            nthWeekday(3, weekday: 2, month: 2, year: year),   // Washington's Birthday
+            goodFriday(in: year),
+            lastWeekday(2, month: 5, year: year),              // Memorial Day
+            observed(month: 6, day: 19, in: year),             // Juneteenth
+            observed(month: 7, day: 4, in: year),              // Independence Day
+            nthWeekday(1, weekday: 2, month: 9, year: year),   // Labor Day
+            nthWeekday(4, weekday: 5, month: 11, year: year),  // Thanksgiving
+            observed(month: 12, day: 25, in: year),            // Christmas Day
+        ]
+        holidayCache[year] = holidays
+        return holidays
+    }
+
+    /// Saturday closures move to the preceding Friday, Sunday ones to Monday.
+    private static func observed(month: Int, day: Int, in year: Int) -> CalendarDay {
+        let base = CalendarDay(year: year, month: month, day: day)
+        switch weekday(of: base) {
+        case 7: return adding(days: -1, to: base)
+        case 1: return adding(days: 1, to: base)
+        default: return base
+        }
+    }
+
+    private static func nthWeekday(_ nth: Int, weekday: Int, month: Int, year: Int) -> CalendarDay {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = Market.us.timeZone
+        guard let first = calendar.date(from: DateComponents(year: year, month: month, day: 1)) else {
+            return CalendarDay(year: year, month: month, day: 1)
+        }
+        let offset = (weekday - calendar.component(.weekday, from: first) + 7) % 7
+        return CalendarDay(year: year, month: month, day: 1 + offset + (nth - 1) * 7)
+    }
+
+    private static func lastWeekday(_ weekday: Int, month: Int, year: Int) -> CalendarDay {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = Market.us.timeZone
+        let nextMonth = month == 12 ? 1 : month + 1
+        let nextYear = month == 12 ? year + 1 : year
+        guard let firstOfNext = calendar.date(from: DateComponents(year: nextYear, month: nextMonth, day: 1)),
+              let last = calendar.date(byAdding: .day, value: -1, to: firstOfNext) else {
+            return CalendarDay(year: year, month: month, day: 1)
+        }
+        let offset = (calendar.component(.weekday, from: last) - weekday + 7) % 7
+        return CalendarDay(
+            year: year,
+            month: month,
+            day: calendar.component(.day, from: last) - offset
+        )
+    }
+
+    private static func goodFriday(in year: Int) -> CalendarDay {
+        adding(days: -2, to: easterSunday(in: year))
+    }
+
+    /// Anonymous Gregorian algorithm for Easter Sunday.
+    private static func easterSunday(in year: Int) -> CalendarDay {
+        let a = year % 19
+        let b = year / 100
+        let c = year % 100
+        let d = b / 4
+        let e = b % 4
+        let f = (b + 8) / 25
+        let g = (b - f + 1) / 3
+        let h = (19 * a + b - d - g + 15) % 30
+        let i = c / 4
+        let k = c % 4
+        let l = (32 + 2 * e + 2 * i - h - k) % 7
+        let m = (a + 11 * h + 22 * l) / 451
+        let month = (h + l - 7 * m + 114) / 31
+        let day = ((h + l - 7 * m + 114) % 31) + 1
+        return CalendarDay(year: year, month: month, day: day)
+    }
+
+    private static func weekday(of day: CalendarDay) -> Int {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = Market.us.timeZone
+        guard let date = calendar.date(from: DateComponents(year: day.year, month: day.month, day: day.day)) else {
+            return 0
+        }
+        return calendar.component(.weekday, from: date)
+    }
+
+    private static func adding(days: Int, to day: CalendarDay) -> CalendarDay {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = Market.us.timeZone
+        guard let date = calendar.date(from: DateComponents(year: day.year, month: day.month, day: day.day)),
+              let shifted = calendar.date(byAdding: .day, value: days, to: date) else {
+            return day
+        }
+        return CalendarDay(shifted, in: Market.us.timeZone)
     }
 }
 

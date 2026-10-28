@@ -39,7 +39,7 @@ targetTemplates:
     settings:
       base:
         MARKETING_VERSION: "0.16.0"
-        CURRENT_PROJECT_VERSION: "1787242352"
+        CURRENT_PROJECT_VERSION: "1793151611"
         SWIFT_VERSION: "6.0"
         DEVELOPMENT_LANGUAGE: en
         # The Longbridge plugin script writes to the SDK cache under $SRCROOT
@@ -213,6 +213,10 @@ targets:
       # The Icon Composer document renders the Liquid Glass app icon on iOS 26.
       - path: PulseMac/Resources/AppIcon.icon
         buildPhase: resources
+      # Required-reason API disclosure. Shared with the Mac target: both clients
+      # read UserDefaults for settings and the watchlist.
+      - path: PulseMac/Resources/PrivacyInfo.xcprivacy
+        buildPhase: resources
     dependencies:
       - package: PulseCore
       - package: PulseUI
@@ -243,7 +247,7 @@ targets:
     settings:
       base:
         MARKETING_VERSION: "0.16.0"
-        CURRENT_PROJECT_VERSION: "1787242352"
+        CURRENT_PROJECT_VERSION: "1793151611"
         SWIFT_VERSION: "6.0"
         DEVELOPMENT_LANGUAGE: en
         SWIFT_STRICT_CONCURRENCY: complete

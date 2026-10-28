@@ -2,7 +2,8 @@
 
 基于 Pulse v0.15.8 的本地 macOS / iOS 行情应用。
 
-- 上游：https://github.com/fatwang2/Pulse
+- 上游：https://github.com/fatwang2/Pulse（remote `upstream`，仅拉取，推送地址已禁用）
+- Fork：https://github.com/xiaozhouzhoua/Pulse（remote `origin`，`quote` 分支推送至此；不向上游发起任何合并请求）
 - 基础提交：86cbf2526b1d25f18d5342e35e55f8ca1c3d884e
 - 许可证：MIT，原始 LICENSE 和版权声明保留。
 - 应用名称：Tick（2026-10-23 起由 Quote 改名，本地工程名 2026-10-25 同步改为 Tick）
@@ -43,13 +44,16 @@ xcodebuild -project Tick.xcodeproj -scheme TickiOS -configuration Release \
 
 ## 上架
 
-`metadata/` 存放四语言商店文案，`.asc/workflow.json` 提供归档/上传/挂载/校验流程：
+`metadata/` 存放 macOS 四语言商店文案，`metadata-ios/` 存放 iOS 专属文案（去掉菜单栏、持仓、分享卡与本地 MCP 等 Mac 功能），`.asc/workflow.json` 提供归档/上传/挂载/校验流程：
 
 ```sh
 asc workflow validate
 asc workflow run --dry-run mac-stage
 asc workflow run mac-release SUBMIT_FOR_REVIEW:true
+asc workflow run ios-release SUBMIT_FOR_REVIEW:true
 ```
+
+两个平台共用同一个 App 记录和 App 信息（名称、副标题），所以副标题使用跨平台表述；版本描述按平台分别维护。
 
 商店页：隐私政策 <https://xiaozhouzhoua.github.io/tick/privacy.html>，支持页 <https://xiaozhouzhoua.github.io/tick/support.html>。
 

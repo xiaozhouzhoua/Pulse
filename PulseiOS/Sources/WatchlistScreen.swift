@@ -100,6 +100,7 @@ struct WatchlistScreen: View {
         }
         .listStyle(.plain)
         .animation(.default, value: appState.watchlist.items.map(\.symbol))
+        .refreshable { await appState.engine.refreshNow() }
     }
 
     private func removeItems(at offsets: IndexSet) {

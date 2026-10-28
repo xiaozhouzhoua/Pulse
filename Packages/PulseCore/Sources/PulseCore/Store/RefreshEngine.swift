@@ -107,6 +107,15 @@ public final class RefreshEngine {
         start()
     }
 
+    /// One refresh round that ignores the per-source cadence, for pull-to-refresh.
+    /// The scheduler loop keeps running; both paths are main-actor isolated, so
+    /// the stamps it writes keep a concurrent tick from duplicating the work.
+    public func refreshNow() async {
+        lastPollAt = [:]
+        lastNameRefreshAt = .distantPast
+        await tick()
+    }
+
     private func tick() async {
         guard !writesHeld else { return }
         let symbols = watchlist.symbols
